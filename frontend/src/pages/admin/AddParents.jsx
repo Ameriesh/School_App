@@ -37,69 +37,108 @@ function AddParent() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const form = new FormData();
     for (let key in formData) {
       if (formData[key]) {
         form.append(key, formData[key]);
       }
     }
-
     try {
       const res = await fetch("http://localhost:5000/api/parents", {
         method: "POST",
         body: form,
       });
-
       if (res.ok) {
-        navigate("/parents"); // adapte cette route à ta structure
+        navigate("/parents");
       } else {
         const errorData = await res.json();
-        console.error("Erreur lors de l'ajout", errorData);
         alert("Erreur lors de l'ajout : " + (errorData.message || res.statusText));
       }
     } catch (err) {
-      console.error(err);
       alert("Erreur réseau, réessayez plus tard.");
     }
   };
 
   return (
     <AdminLayout>
-      <div className="min-h-screen bg-gray-50 p-6 flex flex-col items-center">
-        {/* Titre */}
-        <Card className="w-full max-w-4xl mb-6">
+      <div className="min-h-screen bg-gray-50 p-6 flex flex-col items-center justify-center">
+        <Card className="w-full max-w-2xl mb-6 shadow-lg rounded-2xl">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold">Ajouter un Parent d'élève</CardTitle>
+            <CardTitle className="text-2xl font-extrabold text-[#38bdf8] text-center">Ajouter un Parent d'élève</CardTitle>
           </CardHeader>
         </Card>
-
-        {/* Formulaire */}
-        <Card className="w-full max-w-4xl">
+        <Card className="w-full max-w-2xl shadow-lg rounded-2xl">
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-              <Input name="nom1" placeholder="Nom du responsable légal 1" required onChange={handleChange} />
-              <Input name="prenom1" placeholder="Prénom du responsable légal 1" required onChange={handleChange} />
-              <Input name="nom2" placeholder="Nom du responsable légal 2" onChange={handleChange} />
-              <Input name="prenom2" placeholder="Prénom du responsable légal 2" onChange={handleChange} />
-              <Input name="proffesion1" placeholder="Profession du responsable légal 1" required onChange={handleChange} />
-              <Input name="proffesion2" placeholder="Profession du responsable légal 2" onChange={handleChange} />
-              <Input name="email1" type="email" placeholder="Email du responsable légal 1" required onChange={handleChange} />
-              <Input name="email2" type="email" placeholder="Email du responsable légal 2" onChange={handleChange} />
-              <Input name="telephone1" placeholder="Téléphone du responsable légal 1" required onChange={handleChange} />
-              <Input name="telephone2" placeholder="Téléphone du responsable légal 2" onChange={handleChange} />
-              <Input name="adresse1" placeholder="Adresse du responsable légal 1" required onChange={handleChange} />
-              <Input name="adresse2" placeholder="Adresse du responsable légal 2" onChange={handleChange} />
-              <Input name="photo1" type="file" accept="image/*" required onChange={handleChange} />
-              <Input name="photo2" type="file" accept="image/*" onChange={handleChange} />
-              <Input name="name_user" placeholder="Nom d'utilisateur" required onChange={handleChange} />
-              <Input name="password" type="password" placeholder="Mot de passe" required onChange={handleChange} />
-
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => navigate(-1)}>
+            <form onSubmit={handleSubmit} className="space-y-6 mt-4">
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Nom du responsable légal 1</label>
+                <Input name="nom1" placeholder="Nom du responsable légal 1" required onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Prénom du responsable légal 1</label>
+                <Input name="prenom1" placeholder="Prénom du responsable légal 1" required onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Nom du responsable légal 2</label>
+                <Input name="nom2" placeholder="Nom du responsable légal 2" onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Prénom du responsable légal 2</label>
+                <Input name="prenom2" placeholder="Prénom du responsable légal 2" onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Profession du responsable légal 1</label>
+                <Input name="proffesion1" placeholder="Profession du responsable légal 1" required onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Profession du responsable légal 2</label>
+                <Input name="proffesion2" placeholder="Profession du responsable légal 2" onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Email du responsable légal 1</label>
+                <Input name="email1" type="email" placeholder="Email du responsable légal 1" required onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Email du responsable légal 2</label>
+                <Input name="email2" type="email" placeholder="Email du responsable légal 2" onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Téléphone du responsable légal 1</label>
+                <Input name="telephone1" placeholder="Téléphone du responsable légal 1" required onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Téléphone du responsable légal 2</label>
+                <Input name="telephone2" placeholder="Téléphone du responsable légal 2" onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Adresse du responsable légal 1</label>
+                <Input name="adresse1" placeholder="Adresse du responsable légal 1" required onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Adresse du responsable légal 2</label>
+                <Input name="adresse2" placeholder="Adresse du responsable légal 2" onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Photo du responsable légal 1</label>
+                <Input name="photo1" type="file" accept="image/*" required onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Photo du responsable légal 2</label>
+                <Input name="photo2" type="file" accept="image/*" onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Nom d'utilisateur</label>
+                <Input name="name_user" placeholder="Nom d'utilisateur" required onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Mot de passe</label>
+                <Input name="password" type="password" placeholder="Mot de passe" required onChange={handleChange} />
+              </div>
+              <div className="flex justify-end space-x-2 pt-2">
+                <Button type="button" variant="outline" onClick={() => navigate(-1)} className="rounded-lg">
                   Annuler
                 </Button>
-                <Button type="submit">Enregistrer</Button>
+                <Button type="submit" className="bg-[#38bdf8] hover:bg-[#0ea5e9] text-white font-bold rounded-lg">Enregistrer</Button>
               </div>
             </form>
           </CardContent>

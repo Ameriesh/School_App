@@ -11,6 +11,7 @@ const teacherSchema = new mongoose.Schema({
   telephone: String,
   dateEntree: Date,
   photo: String,
+  firebaseUid: { type: String, unique: true }, // Ajout pour lier à Firebase
   role: { type: String, default: "enseignant" }
 }, { timestamps: true });
 

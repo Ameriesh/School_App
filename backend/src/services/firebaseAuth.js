@@ -1,5 +1,5 @@
 const admin = require("firebase-admin");
-const serviceAccount = require("./serviceAccountKey.json"); // mets le bon chemin
+const serviceAccount = require("./serviceAccountKey.json"); // Assure-toi que le chemin est correct
 
 if (!admin.apps.length) {
   admin.initializeApp({

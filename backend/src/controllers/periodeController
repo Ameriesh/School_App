@@ -1,0 +1,20 @@
+const Periode = require("../models/Periode");
+
+exports.createPeriode = async (req, res) => {
+  try {
+    const periode = new Periode(req.body);
+    await periode.save();
+    res.status(201).json({ message: "Période créée", periode });
+  } catch (error) {
+    res.status(500).json({ message: "Erreur", error: error.message });
+  }
+};
+
+exports.getPeriodes = async (req, res) => {
+  try {
+    const periodes = await Periode.find();
+    res.status(200).json({ periodes });
+  } catch (error) {
+    res.status(500).json({ message: "Erreur", error: error.message });
+  }
+};

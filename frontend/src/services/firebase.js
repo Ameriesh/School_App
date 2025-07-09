@@ -1,6 +1,8 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore"; // ✅ nécessaire
+
 const firebaseConfig = {
   apiKey: "AIzaSyAaulUH_JqZc4Bur0jfo3Gz8tCTCqQnNmg",
   authDomain: "schoolapp-ef28f.firebaseapp.com",
@@ -13,4 +15,12 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+
+// Authentification
+const auth = getAuth(app);
+
+// 🔥 Firestore
+const firestore = getFirestore(app);
+
+// ✅ Exporte auth + firestore
+export { auth, firestore };

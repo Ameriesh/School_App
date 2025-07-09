@@ -7,6 +7,10 @@ const teacherRoutes = require("./src/routes/teacherRoutes");
 const parentsRoutes = require("./src/routes/parentRoutes");
 const eleveRoutes = require("./src/routes/elevesRoutes");
 const classeRoutes = require("./src/routes/classeRoutes");
+const periodeRoutes = require("./src/routes/periodeRoutes");
+const competenceRoutes = require("./src/routes/competenceRoutes");
+const sousCompetenceRoutes = require("./src/routes/sousCompetenceRoutes");
+const noteRoutes = require("./routes/noteRoutes");
 dotenv.config();
 
 const app = express();
@@ -18,6 +22,10 @@ app.use('/uploads', express.static('uploads'));
 app.use("/api/parents", parentsRoutes);
 app.use("/api/eleves", eleveRoutes);
 app.use("/api/classes", classeRoutes);
+app.use("/api/periodes", periodeRoutes);
+app.use("/api/competences", competenceRoutes);
+app.use("/api/souscompetences", sousCompetenceRoutes);
+app.use("/api/notes", noteRoutes);
 
 const connectDB = require('./src/config/db');
 connectDB();

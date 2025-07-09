@@ -13,14 +13,16 @@ router.post(
 
 
 // GET /api/parents - Récupérer tous les parents
+// GET /api/parents
 router.get("/", async (req, res) => {
   try {
-    const parents = await Parent.find(); // récupère tous les documents parents
+    const parents = await Parent.find().populate("enfants", "nom prenom classe"); // populate noms d'enfants
     res.json(parents);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Erreur serveur lors de la récupération des parents." });
   }
 });
+
 
 module.exports = router;

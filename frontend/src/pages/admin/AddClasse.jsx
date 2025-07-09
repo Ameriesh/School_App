@@ -15,23 +15,37 @@ function AddClasse() {
   });
 
   const [enseignants, setEnseignants] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Récupérer les enseignants du backend
   useEffect(() => {
-  async function fetchEnseignants() {
-    try {
-      const res = await fetch("http://localhost:5000/api/teachers");
-      const data = await res.json();
-      console.log("Enseignants récupérés :", data); // <= vérification ici
-     setEnseignants(data || []);
+    async function fetchEnseignants() {
+      const token = localStorage.getItem("token");
+      console.log("TOKEN LOCALSTORAGE =", token);
+      try {
+        const res = await fetch("http://localhost:5000/api/teachers", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-    } catch (err) {
-      console.error("Erreur lors du chargement des enseignants", err);
+        if (!res.ok) {
+          throw new Error("Non autorisé ou erreur serveur");
+        }
+
+        const data = await res.json();
+
+        // ⚠️ Assure-toi que ton backend renvoie { teachers: [...] }
+        setEnseignants(data.data || []);
+      } catch (err) {
+        console.error("Erreur lors du chargement des enseignants :", err);
+        setEnseignants([]); // évite plantage si map
+      } finally {
+        setLoading(false);
+      }
     }
-  }
 
-  fetchEnseignants();
-}, []);
+    fetchEnseignants();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -40,84 +54,106 @@ function AddClasse() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const token = localStorage.getItem("token");
 
     try {
       const res = await fetch("http://localhost:5000/api/classes", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(formData),
       });
 
       if (res.ok) {
         navigate("/admin/classes");
+        console.log("Authorization header:", req.headers.authorization);
+
       } else {
         const errorData = await res.json();
         alert("Erreur : " + (errorData.message || "Échec de l'enregistrement"));
       }
     } catch (error) {
-      console.error("Erreur réseau :", error);
-      alert("Erreur réseau");
+      alert("Erreur réseau ou serveur");
     }
   };
 
   return (
     <AdminLayout>
-      <div className="min-h-screen bg-gray-50 p-6 flex flex-col items-center">
-        {/* Titre */}
-        <Card className="w-full max-w-4xl mb-6">
+      <div className="min-h-screen bg-gray-50 p-6 flex flex-col items-center justify-center">
+        <Card className="w-full max-w-2xl mb-6 shadow-lg rounded-2xl">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold">Ajouter une Classe</CardTitle>
+            <CardTitle className="text-2xl font-extrabold text-[#38bdf8] text-center">
+              Ajouter une Classe
+            </CardTitle>
           </CardHeader>
         </Card>
-
-        {/* Formulaire */}
-        <Card className="w-full max-w-4xl flex-grow">
+        <Card className="w-full max-w-2xl shadow-lg rounded-2xl">
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Input
-                name="nomclass"
-                placeholder="Nom de la classe"
-                required
-                onChange={handleChange}
-              />
-              <Input
-                name="capacite"
-                placeholder="Capacité maximale"
-                type="number"
-                required
-                onChange={handleChange}
-              />
-              <select
-                name="niveau"
-                required
-                onChange={handleChange}
-                className="w-full border rounded px-3 py-2"
-              >
-                <option value="">-- Niveau --</option>
-                <option value="I">Niveau I</option>
-                <option value="II">Niveau II</option>
-                <option value="III">Niveau III</option>
-              </select>
-
-              <select
-                name="enseignant"
-                required
-                onChange={handleChange}
-                className="w-full border rounded px-3 py-2"
-              >
-                <option value="">-- Sélectionner un enseignant --</option>
-                {enseignants.map((e) => (
-                  <option key={e._id} value={e._id}>
-                    {e.nom} {e.prenom}
-                  </option>
-                ))}
-              </select>
-
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => navigate(-1)}>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Nom de la classe</label>
+                <Input
+                  name="nomclass"
+                  placeholder="Nom de la classe"
+                  required
+                  onChange={handleChange}
+                />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Capacité maximale</label>
+                <Input
+                  name="capacite"
+                  placeholder="Capacité maximale"
+                  type="number"
+                  required
+                  onChange={handleChange}
+                />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Niveau</label>
+                <select
+                  name="niveau"
+                  required
+                  onChange={handleChange}
+                  className="w-full border rounded px-3 py-2"
+                >
+                  <option value="">-- Niveau --</option>
+                  <option value="I">Niveau I</option>
+                  <option value="II">Niveau II</option>
+                  <option value="III">Niveau III</option>
+                </select>
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Enseignant</label>
+                <select
+                  name="enseignant"
+                  required
+                  onChange={handleChange}
+                  className="w-full border rounded px-3 py-2"
+                >
+                  <option value="">-- Sélectionner un enseignant --</option>
+                  {Array.isArray(enseignants) && enseignants.length > 0 ? (
+                    enseignants.map((e) => (
+                      <option key={e._id} value={e._id}>
+                        {e.nom} {e.prenom}
+                      </option>
+                    ))
+                  ) : (
+                    <option disabled>
+                      {loading ? "Chargement..." : "Aucun enseignant trouvé"}
+                    </option>
+                  )}
+                </select>
+              </div>
+              <div className="flex justify-end space-x-2 pt-2">
+                <Button type="button" variant="outline" onClick={() => navigate(-1)} className="rounded-lg">
                   Annuler
                 </Button>
-                <Button type="submit">Enregistrer</Button>
+                <Button type="submit" className="bg-[#38bdf8] hover:bg-[#0ea5e9] text-white font-bold rounded-lg">
+                  Enregistrer
+                </Button>
               </div>
             </form>
           </CardContent>

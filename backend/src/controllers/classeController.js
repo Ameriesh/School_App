@@ -1,4 +1,3 @@
-// backend/src/controllers/classeController.js
 const Classe = require("../models/Classe");
 const Teacher = require("../models/Teacher");
 
@@ -18,7 +17,14 @@ exports.addClasse = async (req, res) => {
       return res.status(400).json({ message: "Cette classe existe déjà" });
     }
 
-    const newClasse = new Classe({ nomclass, capacite, niveau, enseignant });
+    const newClasse = new Classe({
+      nomclass,
+      capacite,
+      niveau,
+      enseignant,
+      effectif: 0, // Initialisation de l'effectif à 0
+    });
+
     await newClasse.save();
 
     res.status(201).json({ message: "Classe ajoutée avec succès", classe: newClasse });

@@ -5,7 +5,7 @@ const classeSchema = new mongoose.Schema({
   nomclass: String,
   capacite: Number,
   niveau: String,
-  enseignant: { type: mongoose.Schema.Types.ObjectId, ref: "Enseignant" },
+  enseignant: { type: mongoose.Schema.Types.ObjectId, ref: "Teacher" },
   effectif: { type: Number, default: 0 } // Ce champ est incrémenté
 });
 

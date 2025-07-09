@@ -1,7 +1,12 @@
 import React, { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from '../../services/firebase'
-import { Button } from "@/components/ui/button"
+import { auth, firestore } from "../../services/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { getIdToken } from "firebase/auth";
+
+
 export default function Login({ onLogin }) {
   const [formData, setFormData] = useState({
     email: "",
@@ -10,53 +15,60 @@ export default function Login({ onLogin }) {
   });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const handleChange = e => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleChange = (e) => {
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = async e => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
-
+    setLoading(true);
+    const { email, password, role } = formData;
     try {
-      // Authentification Firebase
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password
-      );
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      const token = await user.getIdToken(); // ⬅️ AJOUTER ICI
+      localStorage.setItem("token", token);
+      console.log("🔥 Firebase ID Token:", token); // 🔑 Affiche le token dans la console
 
-      // Vérifie que le rôle est administrateur (plus tard tu peux vérifier dans Firestore)
-      if (formData.role !== "administrateur") {
-        setError("Seuls les administrateurs peuvent se connecter ici.");
-        setLoading(false);
-        return;
+      const userDocRef = doc(firestore, "users", user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      if (!userDocSnap.exists()) {
+        throw new Error("Profil utilisateur introuvable.");
       }
-
-      // Connexion réussie, on remonte l’info à App.jsx
-      onLogin(formData.email, formData.role);
+      const userData = userDocSnap.data();
+      if (userData.role !== role) {
+        throw new Error("Rôle sélectionné ne correspond pas à votre rôle.");
+      }
+      onLogin(email, role);
+      if (role === "administrateur") {
+        navigate("/admin/dashboard");
+      } else if (role === "enseignant") {
+        navigate("/admin/dashboard");
+      }
     } catch (err) {
-      setError("Erreur d’authentification : " + err.message);
+      setError("Erreur : " + err.message);
+    } finally {
       setLoading(false);
     }
   };
 
-  
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white px-4">
-      <div className="max-w-md w-full bg-gray-50 p-8 rounded-lg shadow-lg">
-        <h2 className="text-3xl font-bold text-black mb-6 text-center">Connexion</h2>
-
+    <div className="min-h-screen flex items-center justify-center bg-[#0a2540] px-4">
+      <div className="max-w-md w-full bg-[#f4f4f4] p-8 rounded-2xl shadow-2xl">
+        <h2 className="text-3xl font-extrabold text-[#38bdf8] mb-6 text-center tracking-tight">Connexion</h2>
         {error && (
-          <div className="mb-4 p-3 bg-red-200 text-red-800 rounded">{error}</div>
+          <div className="mb-4 p-3 bg-rose-100 text-rose-700 rounded-lg border border-rose-200 text-center text-sm font-medium">
+            {error}
+          </div>
         )}
-
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="email" className="block text-gray-700 mb-1 font-medium">Email</label>
+            <label htmlFor="email" className="block text-gray-700 mb-1 font-semibold">
+              Email
+            </label>
             <input
               type="email"
               name="email"
@@ -64,12 +76,13 @@ export default function Login({ onLogin }) {
               value={formData.email}
               onChange={handleChange}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007ACC]"
+              className="w-full px-4 py-2 border border-[#38bdf8] rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600 shadow-sm transition"
             />
           </div>
-
           <div>
-            <label htmlFor="password" className="block text-gray-700 mb-1 font-medium">Mot de passe</label>
+            <label htmlFor="password" className="block text-gray-700 mb-1 font-semibold">
+              Mot de passe
+            </label>
             <input
               type="password"
               name="password"
@@ -77,31 +90,31 @@ export default function Login({ onLogin }) {
               value={formData.password}
               onChange={handleChange}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007ACC]"
+              className="w-full px-4 py-2 border border-[#38bdf8] rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600 shadow-sm transition"
             />
           </div>
-
           <div>
-            <label htmlFor="role" className="block text-gray-700 mb-1 font-medium">Rôle</label>
+            <label htmlFor="role" className="block text-gray-700 mb-1 font-semibold">
+              Rôle
+            </label>
             <select
               name="role"
               id="role"
               value={formData.role}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007ACC]"
+              className="w-full px-4 py-2 border border-[#38bdf8] rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600 shadow-sm transition"
             >
               <option value="administrateur">Administrateur</option>
               <option value="enseignant">Enseignant</option>
             </select>
           </div>
-
-          <button
+          <Button
             type="submit"
+            className="w-full bg-[#38bdf8] hover:bg-[#38bdf6] text-white font-bold rounded-lg shadow-lg py-2 text-lg transition"
             disabled={loading}
-            className="w-full py-3 bg-[#007ACC] text-white font-semibold rounded-md hover:bg-[#005A9E] transition-colors duration-300 disabled:opacity-50"
           >
             {loading ? "Connexion..." : "Se connecter"}
-          </button>
+          </Button>
         </form>
       </div>
     </div>

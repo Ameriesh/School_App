@@ -1,114 +1,181 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
 import AdminLayout from "./AdminLayout";
 import { useNavigate } from "react-router-dom";
+import { auth } from "@/services/firebase";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { toast } from "sonner";
 
 function Enseignants() {
   const navigate = useNavigate();
   const [enseignants, setEnseignants] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
-    async function fetchEnseignants() {
+    const fetchTeachers = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/teachers");
-        if (!res.ok) throw new Error("Erreur lors du chargement");
-        const data = await res.json();
-        setEnseignants(data || []);; // adapte selon la forme de ta réponse
+        const token = await auth.currentUser?.getIdToken();
+        console.log(token)
+        if (!token) throw new Error("Utilisateur non authentifié");
+
+        const response = await fetch("http://localhost:5000/api/teachers", {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            "Cache-Control": "no-cache"
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Erreur HTTP: ${response.status}`);
+        }
+
+        const data = await response.json();
+        setEnseignants(Array.isArray(data.data) ? data.data : []);
       } catch (error) {
-        console.error(error);
+        console.error("Erreur:", error);
+       toast.error("Message d'erreur");
+        setEnseignants([]);
       } finally {
         setLoading(false);
       }
-    }
-    fetchEnseignants();
+    };
+
+    fetchTeachers();
   }, []);
 
-  if (loading) return <AdminLayout><p>Chargement...</p></AdminLayout>;
+  const handleDelete = async (id) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet enseignant ?")) return;
+    
+    try {
+      setDeletingId(id);
+      const token = await auth.currentUser?.getIdToken();
+      const response = await fetch(`http://localhost:5000/api/teachers/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!response.ok) throw new Error("Échec de la suppression");
+
+      setEnseignants(prev => prev.filter(ens => ens._id !== id));
+      toast.success("Message de succès");
+    } catch (error) {
+      console.error("Erreur:", error);
+     toast.error("Message d'erreur");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const getInitials = (nom, prenom) => {
+    return `${nom?.[0] || ''}${prenom?.[0] || ''}`.toUpperCase();
+  };
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-[#38bdf8]" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
-      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-        <Card className="p-6 flex-grow max-w-md w-full">
-          <h1 className="text-2xl font-bold text-gray-800">Liste des enseignants</h1>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <Card className="mb-6 shadow-lg rounded-2xl">
+          <CardHeader className="flex flex-row justify-between items-center">
+            <CardTitle className="text-2xl font-extrabold text-[#38bdf8]">
+              Liste des enseignants
+            </CardTitle>
+            <Button
+              onClick={() => navigate("/admin/enseignants/ajouter")}
+              className="flex items-center gap-2 bg-[#38bdf8] hover:bg-[#0ea5e9] text-white font-bold rounded-lg shadow"
+            >
+              <Plus className="h-4 w-4" />
+              Ajouter un enseignant
+            </Button>
+          </CardHeader>
         </Card>
-        <Button
-          onClick={() => navigate("/admin/enseignants/ajouter")}
-          className="flex items-center whitespace-nowrap"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Ajouter un enseignant
-        </Button>
+
+        <Card className="shadow-lg rounded-2xl">
+          <CardContent className="p-0 overflow-x-auto">
+            <Table className="min-w-full">
+              <TableHeader>
+                <TableRow className="bg-[#38bdf8]/20">
+                  <TableHead className="w-[80px]">Photo</TableHead>
+                  <TableHead className="min-w-[150px]">Nom complet</TableHead>
+                  <TableHead className="min-w-[120px]">Téléphone</TableHead>
+                  <TableHead className="min-w-[200px]">Email</TableHead>
+                  <TableHead className="w-[120px] text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {enseignants.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                      {loading ? "Chargement..." : "Aucun enseignant trouvé"}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  enseignants.map((enseignant) => (
+                    <TableRow 
+                      key={enseignant._id} 
+                      className="hover:bg-[#e0f2fe]/50 transition-colors"
+                    >
+                      <TableCell>
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage 
+                            src={enseignant.photo ? `http://localhost:5000/uploads/${enseignant.photo}` : undefined} 
+                          />
+                          <AvatarFallback className="bg-[#38bdf8]/20 text-[#0a2540]">
+                            {getInitials(enseignant.nom, enseignant.prenom)}
+                          </AvatarFallback>
+                        </Avatar>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {enseignant.prenom} {enseignant.nom}
+                      </TableCell>
+                      <TableCell>{enseignant.telephone || "-"}</TableCell>
+                      <TableCell className="truncate max-w-[200px]">
+                        {enseignant.email}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-[#0a2540] hover:bg-[#e0f2fe] border-[#38bdf8]"
+                            onClick={() => navigate(`/admin/enseignants/modifier/${enseignant._id}`)}
+                          >
+                            <Edit size={16} />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            disabled={deletingId === enseignant._id}
+                            onClick={() => handleDelete(enseignant._id)}
+                          >
+                            {deletingId === enseignant._id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 size={16} />
+                            )}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
-
-      <Card>
-        <CardContent className="p-4 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Photo</TableHead>
-                <TableHead>Noms</TableHead>
-                <TableHead>Prénoms</TableHead>
-                <TableHead>Téléphone</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Classe</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {enseignants.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-gray-500">
-                    Aucun enseignant trouvé.
-                  </TableCell>
-                </TableRow>
-              )}
-
-              {enseignants.map((enseignant) => (
-                <TableRow key={enseignant._id || enseignant.id}>
-                  <TableCell>
-                    <img
-                      src={enseignant.photo ? `http://localhost:5000/uploads/${enseignant.photo}` : "https://via.placeholder.com/40"}
-                      alt={`${enseignant.nom} ${enseignant.prenom}`}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
-                  </TableCell>
-                  <TableCell>{enseignant.nom}</TableCell>
-                  <TableCell>{enseignant.prenom}</TableCell>
-                  <TableCell>{enseignant.telephone}</TableCell>
-                  <TableCell>{enseignant.email}</TableCell>
-                  <TableCell>{enseignant.classe}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                        title="Modifier"
-                        onClick={() => navigate(`/admin/enseignants/modifier/${enseignant._id || enseignant.id}`)}
-                      >
-                        <Edit size={16} />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-red-600 border-red-600 hover:bg-red-50"
-                        title="Supprimer"
-                        onClick={() => alert(`Supprimer enseignant ${enseignant.nom} ${enseignant.prenom} ?`)}
-                      >
-                        <Trash2 size={16} />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
     </AdminLayout>
   );
 }

@@ -26,114 +26,170 @@ function AddStudent() {
     nationalite: "",
     langue: "",
   });
-
-  // États pour listes dynamiques
+  const [photo, setPhoto] = useState(null);
   const [parents, setParents] = useState([]);
   const [classes, setClasses] = useState([]);
 
   useEffect(() => {
-    // Charger parents
     fetch("http://localhost:5000/api/parents")
-      .then(res => res.json())
-      .then(data => setParents(data || []))
-      .catch(err => console.error("Erreur chargement parents:", err));
-
-    // Charger classes
+      .then((res) => res.json())
+      .then((data) => setParents(data || []))
+      .catch((err) => console.error("Erreur chargement parents:", err));
     fetch("http://localhost:5000/api/classes")
-      .then(res => res.json())
-      .then(data => setClasses(data.classes || []))
-      .catch(err => console.error("Erreur chargement classes:", err));
+      .then((res) => res.json())
+      .then((data) => setClasses(data.classes || []))
+      .catch((err) => console.error("Erreur chargement classes:", err));
   }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
-
-  const handleSubmit = (e) => {
+  const handlePhotoChange = (e) => {
+    setPhoto(e.target.files[0]);
+  };
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Formulaire élève :", formData);
-    // Ici envoie au backend puis navigate après succès
-    navigate("/eleves");
+    try {
+      const dataToSend = new FormData();
+      Object.entries(formData).forEach(([key, value]) => {
+        dataToSend.append(key, value);
+      });
+      if (photo) {
+        dataToSend.append("photo", photo);
+      }
+      const response = await fetch("http://localhost:5000/api/eleves", {
+        method: "POST",
+        body: dataToSend,
+      });
+      if (!response.ok) {
+        throw new Error("Erreur serveur");
+      }
+      await response.json();
+      navigate("/admin/eleves");
+    } catch (error) {
+      alert("Une erreur est survenue. Veuillez réessayer.");
+    }
   };
-
   return (
     <AdminLayout>
-      <div className="min-h-screen bg-gray-50 p-6 flex flex-col items-center">
-        <Card className="w-full max-w-4xl mb-6">
+      <div className="min-h-screen bg-gray-50 p-6 flex flex-col items-center justify-center">
+        <Card className="w-full max-w-2xl mb-6 shadow-lg rounded-2xl">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold">Ajouter un élève</CardTitle>
+            <CardTitle className="text-2xl font-extrabold text-indigo-600 text-center">Ajouter un élève</CardTitle>
           </CardHeader>
         </Card>
-
-        <Card className="w-full max-w-4xl">
+        <Card className="w-full max-w-2xl shadow-lg rounded-2xl">
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-              <Input name="nom" placeholder="Noms" required onChange={handleChange} />
-              <Input name="prenom" placeholder="Prénoms" required onChange={handleChange} />
-              
-              <select name="parentId" className="w-full border p-2 rounded" required onChange={handleChange} value={formData.parentId}>
-                <option value="">Sélectionner un parent</option>
-                {parents.map(parent => (
-                  <option key={parent._id} value={parent._id}>
-                    {parent.nom1} {parent.prenom1} {/* adapte selon ton modèle */}
-                  </option>
-                ))}
-              </select>
-
-              <Input name="matricule" placeholder="Matricule" onChange={handleChange} />
-              <Input name="dateNaissance" type="date" required onChange={handleChange} />
-              
-              <select name="sexe" className="w-full border p-2 rounded" required onChange={handleChange} value={formData.sexe}>
-                <option value="">Sexe</option>
-                <option value="Masculin">Masculin</option>
-                <option value="Féminin">Féminin</option>
-              </select>
-              
-              <select name="groupeSanguin" className="w-full border p-2 rounded" onChange={handleChange} value={formData.groupeSanguin}>
-                <option value="">Groupe sanguin</option>
-                <option value="A+">A+</option>
-                <option value="O+">O+</option>
-                <option value="B+">B+</option>
-                <option value="AB+">AB+</option>
-              </select>
-              
-              <Input name="email" type="email" placeholder="Email" onChange={handleChange} />
-              <Input name="telephone" placeholder="Téléphone" required onChange={handleChange} />
-              <Input name="lieuNaissance" placeholder="Lieu de naissance" onChange={handleChange} />
-              <Input name="adresse" placeholder="Adresse" required onChange={handleChange} />
-              <Input name="ville" placeholder="Ville" onChange={handleChange} />
-              
-              <select name="pays" className="w-full border p-2 rounded" onChange={handleChange} value={formData.pays}>
-                <option value="">Pays</option>
-                <option value="Cameroun">Cameroun</option>
-                <option value="Tchad">Tchad</option>
-              </select>
-              
-              <Input name="nationalite" placeholder="Nationalité" onChange={handleChange} />
-              <Input name="langue" placeholder="Langue parlée" onChange={handleChange} />
-              
-              <select name="niveau" className="w-full border p-2 rounded" required onChange={handleChange} value={formData.niveau}>
-                <option value="">Niveau</option>
-                <option value="I">I</option>
-                <option value="II">II</option>
-                <option value="III">III</option>
-              </select>
-              
-              <select name="classe" className="w-full border p-2 rounded" required onChange={handleChange} value={formData.classe}>
-                <option value="">Classe</option>
-                {classes.map(c => (
-                  <option key={c._id} value={c._id}>
-                    {c.nomclass} {/* ou c.nom, selon ta structure */}
-                  </option>
-                ))}
-              </select>
-
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => navigate(-1)}>
-                  Annuler
-                </Button>
-                <Button type="submit">Enregistrer</Button>
+            <form onSubmit={handleSubmit} className="space-y-6 mt-4" encType="multipart/form-data">
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Noms</label>
+                <Input name="nom" placeholder="Noms" required onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Prénoms</label>
+                <Input name="prenom" placeholder="Prénoms" required onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Parent</label>
+                <select name="parentId" required onChange={handleChange} value={formData.parentId} className="w-full border p-2 rounded">
+                  <option value="">Sélectionner un parent</option>
+                  {parents.map((parent) => (
+                    <option key={parent._id} value={parent._id}>
+                      {parent.nom1} {parent.prenom1}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Matricule</label>
+                <Input name="matricule" placeholder="Matricule" onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Date de naissance</label>
+                <Input name="dateNaissance" type="date" required onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Sexe</label>
+                <select name="sexe" required onChange={handleChange} value={formData.sexe} className="w-full border p-2 rounded">
+                  <option value="">Sexe</option>
+                  <option value="Masculin">Masculin</option>
+                  <option value="Féminin">Féminin</option>
+                </select>
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Groupe sanguin</label>
+                <select name="groupeSanguin" onChange={handleChange} value={formData.groupeSanguin} className="w-full border p-2 rounded">
+                  <option value="">Groupe sanguin</option>
+                  <option value="A+">A+</option>
+                  <option value="O+">O+</option>
+                  <option value="B+">B+</option>
+                  <option value="AB+">AB+</option>
+                </select>
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Email</label>
+                <Input name="email" type="email" placeholder="Email" onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Téléphone</label>
+                <Input name="telephone" placeholder="Téléphone" required onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Lieu de naissance</label>
+                <Input name="lieuNaissance" placeholder="Lieu de naissance" onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Adresse</label>
+                <Input name="adresse" placeholder="Adresse" required onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Ville</label>
+                <Input name="ville" placeholder="Ville" onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Pays</label>
+                <select name="pays" onChange={handleChange} value={formData.pays} className="w-full border p-2 rounded">
+                  <option value="">Pays</option>
+                  <option value="Cameroun">Cameroun</option>
+                  <option value="Tchad">Tchad</option>
+                </select>
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Nationalité</label>
+                <Input name="nationalite" placeholder="Nationalité" onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Langue parlée</label>
+                <Input name="langue" placeholder="Langue parlée" onChange={handleChange} />
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Niveau</label>
+                <select name="niveau" required onChange={handleChange} value={formData.niveau} className="w-full border p-2 rounded">
+                  <option value="">Niveau</option>
+                  <option value="I">I</option>
+                  <option value="II">II</option>
+                  <option value="III">III</option>
+                </select>
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Classe</label>
+                <select name="classe" required onChange={handleChange} value={formData.classe} className="w-full border p-2 rounded">
+                  <option value="">Classe</option>
+                  {classes.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.nomclass}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-[#0a2540]">Photo de l'élève</label>
+                <Input type="file" accept="image/*" onChange={handlePhotoChange} />
+              </div>
+              <div className="flex justify-end space-x-2 pt-2">
+                <Button type="button" variant="outline" onClick={() => navigate(-1)} className="rounded-lg bg-gray-700 text-white hover:bg-gray-800">Annuler</Button>
+                <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg">Enregistrer</Button>
               </div>
             </form>
           </CardContent>
