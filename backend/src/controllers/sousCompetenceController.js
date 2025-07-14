@@ -18,3 +18,14 @@ exports.getSousCompetences = async (req, res) => {
     res.status(500).json({ message: "Erreur", error: error.message });
   }
 };
+
+exports.getByCompetence = async (req, res) => {
+  try {
+    const sousCompetences = await SousCompetence.find({ competence: req.params.id });
+    res.json({ sousCompetences });
+  } catch (error) {
+    console.error("Erreur getByCompetence:", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+

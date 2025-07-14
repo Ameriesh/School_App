@@ -17,7 +17,18 @@ import SousCompetences from "../pages/admin/SousCompetences";
 import AddSousCompetence from "../pages/admin/AddSousCompetence";
 import AddCompetence from "../pages/admin/AddCompetences";
 import AddPeriode from "../pages/admin/AddPeriode";
+import AddNotes from "../pages/teacher/AddNotes";
 import ListeNotes from "../pages/teacher/ListeNotes";
+import RegisterParent from "../pages/parents/RegisterParent";
+import LoginParent from "../pages/parents/LoginParent";
+import ParentDashboard from "../pages/parents/dash/ParentDashboard";
+import ParentLayoutDash from "../pages/parents/dash/ParentLayoutDash";
+import DemandesInscription from "../pages/admin/DemandesInscription";
+import DemandesInscriptionEnfants from "../pages/admin/DemandesInscriptionEnfants";
+import ConfirmationDemande from "../pages/parents/ConfirmationDemande";
+import InscrireEnfant from "../pages/parents/InscrireEnfant";
+import ParentRedirect from "../pages/parents/ParentRedirect";
+
 export default function AppRoutes({ user, onLogin, onLogout }) {
   // Fonction de protection de route
   const ProtectedRoute = ({ children, requiredRole }) => {
@@ -43,6 +54,8 @@ export default function AppRoutes({ user, onLogin, onLogout }) {
               <Login onLogin={onLogin} />
             ) : user.role === "administrateur" ? (
               <Navigate to="/admin" replace />
+            ) : user.role === "parent" ? (
+              <Navigate to="/parent/dashboard" replace />
             ) : (
               <Navigate to="/enseignant" replace />
             )
@@ -173,12 +186,32 @@ export default function AppRoutes({ user, onLogin, onLogout }) {
           }
         />
 
+        {/* Demandes d'inscription - Admin */}
+        <Route
+          path="/admin/demandes-inscription"
+          element={
+            <ProtectedRoute requiredRole="administrateur">
+              <DemandesInscription />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Demandes d'inscription d'enfants - Admin */}
+        <Route
+          path="/admin/demandes-inscription-enfants"
+          element={
+            <ProtectedRoute requiredRole="administrateur">
+              <DemandesInscriptionEnfants />
+            </ProtectedRoute>
+          }
+        />
+
         {/* Dashboard enseignant */}
         <Route
           path="/enseignant"
           element={
             <ProtectedRoute requiredRole="enseignant">
-              <AdminDashboard onLogout={onLogout} />
+              <TeacherDashboard onLogout={onLogout} />
             </ProtectedRoute>
           }
         />
@@ -192,7 +225,7 @@ export default function AppRoutes({ user, onLogin, onLogout }) {
           }
         />
         <Route
-          path="/enseignants/liste"
+          path="/enseignant/eleves"
           element={
             <ProtectedRoute requiredRole="enseignant">
               <ListeEleve />
@@ -200,7 +233,15 @@ export default function AppRoutes({ user, onLogin, onLogout }) {
           }
         />
         <Route
-          path="/notes"
+          path="/enseignant/notes/add"
+          element={
+            <ProtectedRoute requiredRole="enseignant">
+              <AddNotes />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/enseignant/notes"
           element={
             <ProtectedRoute requiredRole="enseignant">
               <ListeNotes />
@@ -208,7 +249,35 @@ export default function AppRoutes({ user, onLogin, onLogout }) {
           }
         />
 
-        {/* Fallback - redirige vers accueil */}
+        {/* Routes publiques pour les parents */}
+        <Route path="/parent/register" element={<RegisterParent />} />
+        <Route path="/parent/confirmation" element={<ConfirmationDemande />} />
+        <Route path="/parent/login" element={<LoginParent />} />
+        <Route path="/parent/redirect" element={<ParentRedirect />} />
+
+        {/* Dashboard parent */}
+        <Route
+          path="/parent/dashboard"
+          element={
+            <ProtectedRoute requiredRole="parent">
+              <ParentLayoutDash onLogout={onLogout}>
+                <ParentDashboard />
+              </ParentLayoutDash>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Routes pour les parents connectés */}
+        <Route
+          path="/parent/inscrire-enfant"
+          element={
+            <ProtectedRoute requiredRole="parent">
+              <InscrireEnfant />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Redirection par défaut */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

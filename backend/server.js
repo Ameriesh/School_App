@@ -10,7 +10,9 @@ const classeRoutes = require("./src/routes/classeRoutes");
 const periodeRoutes = require("./src/routes/periodeRoutes");
 const competenceRoutes = require("./src/routes/competenceRoutes");
 const sousCompetenceRoutes = require("./src/routes/sousCompetenceRoutes");
-const noteRoutes = require("./routes/noteRoutes");
+const noteRoutes = require("./src/routes/noteRoutes");
+const demandeInscriptionRoutes = require("./src/routes/demandeInscriptionRoutes");
+const demandeInscriptionEnfantRoutes = require("./src/routes/demandeInscriptionEnfantRoutes");
 dotenv.config();
 
 const app = express();
@@ -26,6 +28,8 @@ app.use("/api/periodes", periodeRoutes);
 app.use("/api/competences", competenceRoutes);
 app.use("/api/souscompetences", sousCompetenceRoutes);
 app.use("/api/notes", noteRoutes);
+app.use("/api/demandes-inscription", demandeInscriptionRoutes);
+app.use("/api/demandes-inscription-enfants", demandeInscriptionEnfantRoutes);
 
 const connectDB = require('./src/config/db');
 connectDB();

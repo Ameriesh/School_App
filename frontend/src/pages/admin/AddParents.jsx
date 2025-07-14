@@ -4,32 +4,39 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import AdminLayout from "./AdminLayout";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { Users, Upload, Loader2, ArrowLeft, UserPlus } from "lucide-react";
+import { toast } from "sonner";
 
 function AddParent() {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    nom1: "",
-    nom2: "",
-    prenom1: "",
-    prenom2: "",
-    proffesion1: "",
-    proffesion2: "",
-    email1: "",
-    email2: "",
-    telephone1: "",
-    telephone2: "",
-    adresse1: "",
-    adresse2: "",
-    photo1: null,
-    photo2: null,
+    nom: "",
+    prenom: "",
+    profession: "",
+    email: "",
+    telephone: "",
+    adresse: "",
+    photo: null,
     name_user: "",
     password: "",
   });
+
+  const [photoPreview, setPhotoPreview] = useState(null);
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
     if (files) {
       setFormData({ ...formData, [name]: files[0] });
+      
+      // Créer un aperçu de l'image
+      if (files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setPhotoPreview(e.target.result);
+        };
+        reader.readAsDataURL(files[0]);
+      }
     } else {
       setFormData({ ...formData, [name]: value });
     }
@@ -37,108 +44,244 @@ function AddParent() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    
     const form = new FormData();
     for (let key in formData) {
       if (formData[key]) {
         form.append(key, formData[key]);
       }
     }
+    
     try {
       const res = await fetch("http://localhost:5000/api/parents", {
         method: "POST",
         body: form,
       });
+      
       if (res.ok) {
-        navigate("/parents");
+        toast.success("Parent ajouté avec succès");
+        navigate("/admin/parents");
       } else {
         const errorData = await res.json();
-        alert("Erreur lors de l'ajout : " + (errorData.message || res.statusText));
+        toast.error("Erreur lors de l'ajout : " + (errorData.message || res.statusText));
       }
     } catch (err) {
-      alert("Erreur réseau, réessayez plus tard.");
+      toast.error("Erreur réseau, réessayez plus tard.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <AdminLayout>
-      <div className="min-h-screen bg-gray-50 p-6 flex flex-col items-center justify-center">
-        <Card className="w-full max-w-2xl mb-6 shadow-lg rounded-2xl">
-          <CardHeader>
-            <CardTitle className="text-2xl font-extrabold text-[#38bdf8] text-center">Ajouter un Parent d'élève</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="w-full max-w-2xl shadow-lg rounded-2xl">
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6 mt-4">
-              <div>
-                <label className="block mb-1 font-semibold text-[#0a2540]">Nom du responsable légal 1</label>
-                <Input name="nom1" placeholder="Nom du responsable légal 1" required onChange={handleChange} />
+      <div className="space-y-6 animate-fadeIn">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Retour</span>
+            </Button>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-[#0f172a] mb-2 flex items-center gap-2">
+                <UserPlus className="w-6 h-6 text-[#38bdf8]" />
+                Ajouter un parent
+              </h1>
+              <p className="text-gray-600 text-sm md:text-base">
+                Créez un nouveau compte parent
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <Card className="bg-white shadow-lg rounded-2xl border-0">
+          <CardContent className="p-6">
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Informations du parent */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                  <Users className="w-5 h-5 text-[#38bdf8]" />
+                  <h3 className="text-lg font-semibold text-[#0a2540]">Informations du parent</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[#0a2540]">
+                      Nom <span className="text-red-500">*</span>
+                    </label>
+                    <Input 
+                      name="nom" 
+                      placeholder="Nom du parent" 
+                      required 
+                      onChange={handleChange}
+                      className="focus:ring-2 focus:ring-[#38bdf8] focus:border-transparent"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[#0a2540]">
+                      Prénom <span className="text-red-500">*</span>
+                    </label>
+                    <Input 
+                      name="prenom" 
+                      placeholder="Prénom du parent" 
+                      required 
+                      onChange={handleChange}
+                      className="focus:ring-2 focus:ring-[#38bdf8] focus:border-transparent"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[#0a2540]">
+                      Profession <span className="text-red-500">*</span>
+                    </label>
+                    <Input 
+                      name="profession" 
+                      placeholder="Profession du parent" 
+                      required 
+                      onChange={handleChange}
+                      className="focus:ring-2 focus:ring-[#38bdf8] focus:border-transparent"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[#0a2540]">
+                      Email <span className="text-red-500">*</span>
+                    </label>
+                    <Input 
+                      name="email" 
+                      type="email" 
+                      placeholder="Email du parent" 
+                      required 
+                      onChange={handleChange}
+                      className="focus:ring-2 focus:ring-[#38bdf8] focus:border-transparent"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[#0a2540]">
+                      Téléphone <span className="text-red-500">*</span>
+                    </label>
+                    <Input 
+                      name="telephone" 
+                      placeholder="Téléphone du parent" 
+                      required 
+                      onChange={handleChange}
+                      className="focus:ring-2 focus:ring-[#38bdf8] focus:border-transparent"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[#0a2540]">
+                      Adresse <span className="text-red-500">*</span>
+                    </label>
+                    <Input 
+                      name="adresse" 
+                      placeholder="Adresse du parent" 
+                      required 
+                      onChange={handleChange}
+                      className="focus:ring-2 focus:ring-[#38bdf8] focus:border-transparent"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[#0a2540]">
+                      Photo <span className="text-red-500">*</span>
+                    </label>
+                    <div className="space-y-2">
+                      <Input 
+                        name="photo" 
+                        type="file" 
+                        accept="image/*" 
+                        required 
+                        onChange={handleChange}
+                        className="focus:ring-2 focus:ring-[#38bdf8] focus:border-transparent"
+                      />
+                      {photoPreview && (
+                        <div className="mt-2">
+                          <img 
+                            src={photoPreview} 
+                            alt="Aperçu" 
+                            className="w-20 h-20 rounded-lg object-cover border"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block mb-1 font-semibold text-[#0a2540]">Prénom du responsable légal 1</label>
-                <Input name="prenom1" placeholder="Prénom du responsable légal 1" required onChange={handleChange} />
+
+              {/* Compte utilisateur */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                  <Upload className="w-5 h-5 text-[#38bdf8]" />
+                  <h3 className="text-lg font-semibold text-[#0a2540]">Compte utilisateur</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[#0a2540]">
+                      Nom d'utilisateur <span className="text-red-500">*</span>
+                    </label>
+                    <Input 
+                      name="name_user" 
+                      placeholder="Nom d'utilisateur" 
+                      required 
+                      onChange={handleChange}
+                      className="focus:ring-2 focus:ring-[#38bdf8] focus:border-transparent"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[#0a2540]">
+                      Mot de passe <span className="text-red-500">*</span>
+                    </label>
+                    <Input 
+                      name="password" 
+                      type="password" 
+                      placeholder="Mot de passe" 
+                      required 
+                      onChange={handleChange}
+                      className="focus:ring-2 focus:ring-[#38bdf8] focus:border-transparent"
+                    />
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block mb-1 font-semibold text-[#0a2540]">Nom du responsable légal 2</label>
-                <Input name="nom2" placeholder="Nom du responsable légal 2" onChange={handleChange} />
-              </div>
-              <div>
-                <label className="block mb-1 font-semibold text-[#0a2540]">Prénom du responsable légal 2</label>
-                <Input name="prenom2" placeholder="Prénom du responsable légal 2" onChange={handleChange} />
-              </div>
-              <div>
-                <label className="block mb-1 font-semibold text-[#0a2540]">Profession du responsable légal 1</label>
-                <Input name="proffesion1" placeholder="Profession du responsable légal 1" required onChange={handleChange} />
-              </div>
-              <div>
-                <label className="block mb-1 font-semibold text-[#0a2540]">Profession du responsable légal 2</label>
-                <Input name="proffesion2" placeholder="Profession du responsable légal 2" onChange={handleChange} />
-              </div>
-              <div>
-                <label className="block mb-1 font-semibold text-[#0a2540]">Email du responsable légal 1</label>
-                <Input name="email1" type="email" placeholder="Email du responsable légal 1" required onChange={handleChange} />
-              </div>
-              <div>
-                <label className="block mb-1 font-semibold text-[#0a2540]">Email du responsable légal 2</label>
-                <Input name="email2" type="email" placeholder="Email du responsable légal 2" onChange={handleChange} />
-              </div>
-              <div>
-                <label className="block mb-1 font-semibold text-[#0a2540]">Téléphone du responsable légal 1</label>
-                <Input name="telephone1" placeholder="Téléphone du responsable légal 1" required onChange={handleChange} />
-              </div>
-              <div>
-                <label className="block mb-1 font-semibold text-[#0a2540]">Téléphone du responsable légal 2</label>
-                <Input name="telephone2" placeholder="Téléphone du responsable légal 2" onChange={handleChange} />
-              </div>
-              <div>
-                <label className="block mb-1 font-semibold text-[#0a2540]">Adresse du responsable légal 1</label>
-                <Input name="adresse1" placeholder="Adresse du responsable légal 1" required onChange={handleChange} />
-              </div>
-              <div>
-                <label className="block mb-1 font-semibold text-[#0a2540]">Adresse du responsable légal 2</label>
-                <Input name="adresse2" placeholder="Adresse du responsable légal 2" onChange={handleChange} />
-              </div>
-              <div>
-                <label className="block mb-1 font-semibold text-[#0a2540]">Photo du responsable légal 1</label>
-                <Input name="photo1" type="file" accept="image/*" required onChange={handleChange} />
-              </div>
-              <div>
-                <label className="block mb-1 font-semibold text-[#0a2540]">Photo du responsable légal 2</label>
-                <Input name="photo2" type="file" accept="image/*" onChange={handleChange} />
-              </div>
-              <div>
-                <label className="block mb-1 font-semibold text-[#0a2540]">Nom d'utilisateur</label>
-                <Input name="name_user" placeholder="Nom d'utilisateur" required onChange={handleChange} />
-              </div>
-              <div>
-                <label className="block mb-1 font-semibold text-[#0a2540]">Mot de passe</label>
-                <Input name="password" type="password" placeholder="Mot de passe" required onChange={handleChange} />
-              </div>
-              <div className="flex justify-end space-x-2 pt-2">
-                <Button type="button" variant="outline" onClick={() => navigate(-1)} className="rounded-lg">
+
+              {/* Actions */}
+              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-gray-200">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => navigate(-1)} 
+                  className="flex items-center gap-2"
+                >
+                  <ArrowLeft className="h-4 w-4" />
                   Annuler
                 </Button>
-                <Button type="submit" className="bg-[#38bdf8] hover:bg-[#0ea5e9] text-white font-bold rounded-lg">Enregistrer</Button>
+                <Button 
+                  type="submit" 
+                  disabled={loading}
+                  className="bg-[#38bdf8] hover:bg-[#0ea5e9] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Enregistrement...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="h-4 w-4" />
+                      Enregistrer
+                    </>
+                  )}
+                </Button>
               </div>
             </form>
           </CardContent>

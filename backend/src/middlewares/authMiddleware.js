@@ -1,5 +1,6 @@
 const { admin } = require("../config/firebase-admin-init");
 const Teacher = require("../models/Teacher");
+const jwt = require('jsonwebtoken');
 
 exports.verifyAdmin = async (req, res, next) => {
   try {
@@ -68,6 +69,65 @@ exports.verifyAdmin = async (req, res, next) => {
     });
   }
 };
+
+// Middleware pour l'authentification des parents
+exports.verifyParent = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return res.status(401).json({ 
+        success: false,
+        code: "MISSING_AUTH_TOKEN",
+        message: "Authorization token required"
+      });
+    }
+
+    const token = authHeader.split(" ")[1];
+    
+    // Vérifier le token JWT
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    
+    if (decoded.role !== 'parent') {
+      return res.status(403).json({
+        success: false,
+        code: "FORBIDDEN",
+        message: "Parent privileges required"
+      });
+    }
+
+    // Ajouter les informations du parent à la requête
+    req.parentId = decoded.parentId;
+    req.parentEmail = decoded.email;
+    req.parentRole = decoded.role;
+
+    next();
+  } catch (error) {
+    console.error("Parent auth error:", error);
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        code: "INVALID_TOKEN",
+        message: "Token invalide"
+      });
+    }
+    
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        code: "TOKEN_EXPIRED",
+        message: "Token expiré"
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      code: "AUTH_ERROR",
+      message: "Erreur d'authentification"
+    });
+  }
+};
+
 exports.verifyEnseignant = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(" ")[1];

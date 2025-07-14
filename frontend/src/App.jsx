@@ -9,42 +9,80 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-    if (currentUser) {
+    // Vérifier d'abord s'il y a un token parent
+    const parentToken = localStorage.getItem('parentToken');
+    const parentInfo = localStorage.getItem('parentInfo');
+    
+    if (parentToken && parentInfo) {
       try {
-        const token = await currentUser.getIdToken();
-        const userDoc = await getDoc(doc(firestore, "users", currentUser.uid));
-        
-        if (!userDoc.exists()) {
-          throw new Error("Profil utilisateur non trouvé");
-        }
-
-        const userData = userDoc.data();
+        const parentData = JSON.parse(parentInfo);
         setUser({
-          uid: currentUser.uid,
-          email: currentUser.email,
-          role: userData.role || "inconnu",
-          displayName: userData.displayName || ""
+          uid: parentData._id,
+          email: parentData.email,
+          role: 'parent',
+          displayName: `${parentData.prenom} ${parentData.nom}`,
+          token: parentToken
         });
+        setLoading(false);
+        return;
       } catch (error) {
-        console.error("Erreur récupération profil:", error);
-        await handleLogout(); // Déconnecte si erreur
+        console.error("Erreur parsing parent info:", error);
+        // Nettoyer les données invalides
+        localStorage.removeItem('parentToken');
+        localStorage.removeItem('parentInfo');
       }
-    } else {
-      setUser(null);
     }
-    setLoading(false);
-  });
 
-  return () => unsubscribe();
-}, []);
+    // Si pas de token parent, vérifier Firebase
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        try {
+          const token = await currentUser.getIdToken();
+          const userDoc = await getDoc(doc(firestore, "users", currentUser.uid));
+          
+          if (!userDoc.exists()) {
+            throw new Error("Profil utilisateur non trouvé");
+          }
+
+          const userData = userDoc.data();
+          setUser({
+            uid: currentUser.uid,
+            email: currentUser.email,
+            role: userData.role || "inconnu",
+            displayName: userData.displayName || "",
+            token: token
+          });
+        } catch (error) {
+          console.error("Erreur récupération profil:", error);
+          await handleLogout(); // Déconnecte si erreur
+        }
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
-      setUser(null);
+      // Si c'est un parent, nettoyer les données parent
+      if (user?.role === 'parent') {
+        localStorage.removeItem('parentToken');
+        localStorage.removeItem('parentInfo');
+        setUser(null);
+      } else {
+        // Si c'est un utilisateur Firebase, déconnecter Firebase
+        await signOut(auth);
+        setUser(null);
+      }
     } catch (error) {
       console.error("Erreur lors de la déconnexion:", error);
+      // En cas d'erreur, forcer la déconnexion en nettoyant tout
+      localStorage.removeItem('parentToken');
+      localStorage.removeItem('parentInfo');
+      setUser(null);
     }
   };
 

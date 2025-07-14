@@ -10,11 +10,15 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^17.0.0",
     "express": "^5.1.0",
     "firebase-admin": "^13.4.0",
     "mongoose": "^8.16.1",
-    "multer": "^2.0.1"
+    "mongoose-aggregate-paginate-v2": "^1.1.4",
+    "multer": "^2.0.1",
+    "nodemailer": "^7.0.5",
+    "pdfkit": "^0.17.1"
   }
 }
