@@ -18,6 +18,7 @@ import {
   Briefcase
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { getAuthToken } from "@/lib/utils";
 
 export default function ParentDashboard() {
   const navigate = useNavigate();
@@ -38,13 +39,13 @@ export default function ParentDashboard() {
 
   const fetchParentInfo = async () => {
     try {
-      const token = localStorage.getItem('parentToken');
+      const token = getAuthToken('parent');
       if (!token) {
         navigate('/parent/login');
         return;
       }
 
-      const response = await fetch('http://localhost:5000/api/parents/profile', {
+      const response = await fetch('http://localhost:5000/api/parent/profile', {
         headers: { 
           Authorization: `Bearer ${token}` 
         }
@@ -66,7 +67,7 @@ export default function ParentDashboard() {
 
   const fetchDemandesEnfants = async () => {
     try {
-      const token = localStorage.getItem('parentToken');
+      const token = getAuthToken('parent');
       const response = await fetch('http://localhost:5000/api/demandes-inscription-enfants/mes-demandes', {
         headers: { 
           Authorization: `Bearer ${token}` 

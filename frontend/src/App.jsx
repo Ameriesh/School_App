@@ -54,6 +54,7 @@ function App() {
           });
         } catch (error) {
           console.error("Erreur récupération profil:", error);
+          setUser({ error: error.message });
           await handleLogout(); // Déconnecte si erreur
         }
       } else {
@@ -85,6 +86,27 @@ function App() {
       setUser(null);
     }
   };
+
+  // Affichage d'un message d'erreur explicite si le user n'a pas le rôle enseignant
+  if (user && user.role !== 'enseignant' && window.location.pathname.startsWith('/enseignant')) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <p className="text-xl font-semibold text-red-600">Accès refusé : vous n'avez pas le rôle enseignant.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (user && user.error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <p className="text-xl font-semibold text-red-600">Erreur : {user.error}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

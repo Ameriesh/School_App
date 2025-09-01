@@ -154,7 +154,7 @@ export default function Sidebar({ open, setOpen, onLogout, role }) {
                   >
                     <GraduationCap className="w-5 h-5 group-hover:scale-110 transition-transform" /> 
                     <span>Enseignants</span>
-            </Link>
+                  </Link>
                   
                   <Link 
                     to="/eleves" 
@@ -167,7 +167,7 @@ export default function Sidebar({ open, setOpen, onLogout, role }) {
                   >
                     <School className="w-5 h-5 group-hover:scale-110 transition-transform" /> 
                     <span>Élèves</span>
-            </Link>
+                  </Link>
                   
                   <Link 
                     to="/parents" 
@@ -180,7 +180,7 @@ export default function Sidebar({ open, setOpen, onLogout, role }) {
                   >
                     <UserCheck className="w-5 h-5 group-hover:scale-110 transition-transform" /> 
                     <span>Parents</span>
-            </Link>
+                  </Link>
                   
                   <Link 
                     to="/classes" 
@@ -193,7 +193,7 @@ export default function Sidebar({ open, setOpen, onLogout, role }) {
                   >
                     <BookOpen className="w-5 h-5 group-hover:scale-110 transition-transform" /> 
                     <span>Classes</span>
-            </Link>
+                  </Link>
 
                   <Link 
                     to="/admin/demandes-inscription" 
@@ -295,10 +295,10 @@ export default function Sidebar({ open, setOpen, onLogout, role }) {
               {expandedSections.enseignant && (
                 <div className="ml-4 space-y-1 mt-2">
                   <Link 
-                    to="/teacher/liste-eleve" 
+                    to="/enseignant/eleves" 
                     onClick={handleLinkClick} 
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium group ${
-                      isActiveLink("/teacher/liste-eleve")
+                      isActiveLink("/enseignant/eleves")
                         ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg"
                         : "text-gray-300 hover:bg-white/10 hover:text-white"
                     }`}
@@ -308,30 +308,54 @@ export default function Sidebar({ open, setOpen, onLogout, role }) {
             </Link>
                   
                   <Link 
-                    to="/teacher/add-notes" 
+                    to="/enseignant/notes/add" 
                     onClick={handleLinkClick} 
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium group ${
-                      isActiveLink("/teacher/add-notes")
+                      isActiveLink("/enseignant/notes/add")
                         ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg"
                         : "text-gray-300 hover:bg-white/10 hover:text-white"
                     }`}
                   >
                     <NotebookPen className="w-5 h-5 group-hover:scale-110 transition-transform" /> 
                     <span>Ajouter des notes</span>
-            </Link>
+                  </Link>
                   
                   <Link 
-                    to="/teacher/liste-notes" 
+                    to="/enseignant/notes" 
                     onClick={handleLinkClick} 
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium group ${
-                      isActiveLink("/teacher/liste-notes")
+                      isActiveLink("/enseignant/notes")
                         ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg"
                         : "text-gray-300 hover:bg-white/10 hover:text-white"
                     }`}
                   >
                     <BarChart3 className="w-5 h-5 group-hover:scale-110 transition-transform" /> 
                     <span>Liste des notes</span>
-            </Link>
+                  </Link>
+                  <Link 
+                    to="/enseignant/absences" 
+                    onClick={handleLinkClick} 
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium group ${
+                      isActiveLink("/enseignant/notes/add")
+                        ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg"
+                        : "text-gray-300 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    <NotebookPen className="w-5 h-5 group-hover:scale-110 transition-transform" /> 
+                    <span>Gerer les absences</span>
+                  </Link>
+                  <Link 
+                    to="/enseignant/bulletin" 
+                    onClick={handleLinkClick} 
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium group ${
+                      isActiveLink("/enseignant/notes/add")
+                        ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg"
+                        : "text-gray-300 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    <NotebookPen className="w-5 h-5 group-hover:scale-110 transition-transform" /> 
+                    <span>Gerer les bulletins</span>
+                  </Link>
                 </div>
               )}
             </div>

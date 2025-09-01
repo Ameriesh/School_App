@@ -25,7 +25,12 @@ function Parents() {
   useEffect(() => {
     const fetchParents = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/parents");
+        const response = await fetch("http://localhost:5000/api/parents", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Content-Type": "application/json"
+          }
+        });
         if (!response.ok) throw new Error("Erreur lors du chargement");
         const data = await response.json();
         setParents(Array.isArray(data) ? data : []);
@@ -67,10 +72,9 @@ function Parents() {
   };
 
   const filteredParents = parents.filter(parent =>
-    parent.nom1?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    parent.prenom1?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    parent.nom2?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    parent.prenom2?.toLowerCase().includes(searchTerm.toLowerCase())
+    parent.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    parent.prenom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    parent.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) {
@@ -181,8 +185,8 @@ function Parents() {
                 <TableHeader>
                   <TableRow className="bg-[#38bdf8]/10">
                     <TableHead className="w-[80px] font-semibold text-[#0a2540]">Photo</TableHead>
-                    <TableHead className="min-w-[150px] font-semibold text-[#0a2540]">Responsable 1</TableHead>
-                    <TableHead className="min-w-[150px] font-semibold text-[#0a2540] hidden md:table-cell">Responsable 2</TableHead>
+                    <TableHead className="min-w-[150px] font-semibold text-[#0a2540]">Responsable</TableHead>
+                    <TableHead className="min-w-[150px] font-semibold text-[#0a2540] hidden md:table-cell">Contact</TableHead>
                     <TableHead className="min-w-[200px] font-semibold text-[#0a2540] hidden lg:table-cell">Enfants</TableHead>
                     <TableHead className="w-[120px] text-right font-semibold text-[#0a2540]">Actions</TableHead>
                   </TableRow>
@@ -215,17 +219,20 @@ function Parents() {
                         <TableCell>
                           <Avatar className="h-10 w-10 group-hover:scale-110 transition-transform">
                             <AvatarImage 
-                              src={parent.photo1 ? `http://localhost:5000/uploads/${parent.photo1}` : undefined} 
+                              src={parent.photo ? `http://localhost:5000/uploads/${parent.photo}` : undefined} 
                             />
                             <AvatarFallback className="bg-[#38bdf8]/20 text-[#0a2540] font-semibold">
-                              {getInitials(parent.nom1, parent.prenom1)}
+                              {getInitials(parent.nom, parent.prenom)}
                             </AvatarFallback>
                           </Avatar>
                         </TableCell>
                         <TableCell className="font-medium">
                           <div>
                             <p className="text-[#0a2540] font-semibold">
-                              {parent.prenom1} {parent.nom1}
+                              {parent.prenom} {parent.nom}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {parent.email}
                             </p>
                             <p className="text-sm text-gray-500 md:hidden">
                               {parent.enfants?.length || 0} enfant(s)
@@ -233,13 +240,10 @@ function Parents() {
                           </div>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          {parent.nom2 && parent.prenom2 ? (
-                            <span className="text-[#0a2540]">
-                              {parent.prenom2} {parent.nom2}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
+                          <div>
+                            <p className="text-[#0a2540]">{parent.telephone}</p>
+                            <p className="text-sm text-gray-500">{parent.adresse}</p>
+                          </div>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
                           {parent.enfants?.length > 0 ? (

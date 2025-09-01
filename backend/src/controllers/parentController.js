@@ -2,6 +2,8 @@
 const Parent = require("../models/Parents");
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const Note = require("../models/Note");
+const Eleve = require("../models/Eleve");
 
 // Connexion parent
 exports.loginParent = async (req, res) => {
@@ -88,7 +90,15 @@ exports.loginParent = async (req, res) => {
 // Récupérer les informations du parent connecté
 exports.getParentProfile = async (req, res) => {
   try {
-    const parent = await Parent.findById(req.parentId).select('-motDePasse');
+    const parent = await Parent.findById(req.parentId)
+      .select('-motDePasse')
+      .populate({
+        path: 'enfants',
+        populate: {
+          path: 'classe',
+          select: 'nomclass niveau'
+        }
+      });
     
     if (!parent) {
       return res.status(404).json({
@@ -137,5 +147,55 @@ exports.addParent = async (req, res) => {
   } catch (error) {
     console.error("Erreur ajout parent:", error);
     res.status(500).json({ message: "Erreur lors de l'ajout du parent", error: error.message });
+  }
+};
+
+// Récupérer les notes d'un enfant pour une période et une compétence (pour le parent)
+exports.getNotes = async (req, res) => {
+  try {
+    const parentId = req.parentId; // injecté par le middleware
+    const { enfantId, periode, competence } = req.query;
+
+    if (!enfantId || !periode || !competence) {
+      return res.status(400).json({ message: "enfantId, periode et competence sont requis" });
+    }
+
+    // Vérifier que l'enfant appartient bien au parent
+    const eleve = await Eleve.findOne({ _id: enfantId, parentId });
+    if (!eleve) {
+      return res.status(403).json({ message: "Cet enfant ne vous appartient pas." });
+    }
+
+    // Récupérer les notes de l'enfant pour la période et la compétence
+    const notes = await Note.find({
+      eleve: enfantId,
+      periode,
+      competence
+    })
+      .populate({ path: 'sousCompetence', select: 'nom bareme' })
+      .populate({ path: 'competence', select: 'nom code' })
+      .populate({ path: 'periode', select: 'mois ua trimestre annee' })
+      .populate({ path: 'enseignant', select: 'nom prenom' });
+
+    res.json({ notes });
+  } catch (error) {
+    console.error('Erreur récupération notes enfant:', error);
+    res.status(500).json({ message: "Erreur lors de la récupération des notes", error: error.message });
+  }
+};
+
+// Récupérer tous les parents (pour l'admin)
+exports.getAllParents = async (req, res) => {
+  try {
+    const parents = await Parent.find()
+      .select('-motDePasse')
+      .populate({
+        path: 'enfants',
+        populate: { path: 'classe', select: 'nomclass niveau' }
+      });
+    res.json(parents);
+  } catch (error) {
+    console.error("Erreur récupération parents:", error);
+    res.status(500).json({ message: "Erreur lors de la récupération des parents", error: error.message });
   }
 };

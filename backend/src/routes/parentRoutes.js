@@ -3,8 +3,8 @@ const express = require("express");
 const router = express.Router();
 const upload = require("../middlewares/uploadMiddleware");
 const Parent = require("../models/Parents");
-const { addParent, loginParent, getParentProfile } = require("../controllers/parentController");
-const { verifyParent } = require("../middlewares/authMiddleware");
+const { addParent, loginParent, getParentProfile, getNotes, getAllParents } = require("../controllers/parentController");
+const { verifyParent, verifyParentOrEnseignantRobust, verifyAdmin } = require("../middlewares/authMiddleware");
 
 // Route publique pour la connexion des parents
 router.post("/login", loginParent);
@@ -19,16 +19,10 @@ router.post(
   addParent
 );
 
-// GET /api/parents - Récupérer tous les parents
-// GET /api/parents
-router.get("/", async (req, res) => {
-  try {
-    const parents = await Parent.find().populate("enfants", "nom prenom classe"); // populate noms d'enfants
-    res.json(parents);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Erreur serveur lors de la récupération des parents." });
-  }
-});
+// GET /api/parents - Récupérer tous les parents (admin seulement)
+router.get("/", verifyAdmin, getAllParents);
+
+// Route pour récupérer les notes d'un enfant pour un parent
+router.get("/notes", verifyParentOrEnseignantRobust, getNotes);
 
 module.exports = router;

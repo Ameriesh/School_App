@@ -35,19 +35,46 @@ function AddStudent() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  const fetchParents = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const parentsRes = await fetch("http://localhost:5000/api/parents", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+      const parentsData = await parentsRes.json();
+      setParents(Array.isArray(parentsData) ? parentsData : []);
+    } catch (err) {
+      console.error("Erreur chargement parents:", err);
+      toast.error("Erreur lors du chargement des parents");
+      setParents([]);
+    }
+  };
+
+  const fetchClasses = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const classesRes = await fetch("http://localhost:5000/api/classes", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+      const classesData = await classesRes.json();
+      setClasses(Array.isArray(classesData.classes) ? classesData.classes : []);
+    } catch (err) {
+      console.error("Erreur chargement classes:", err);
+      toast.error("Erreur lors du chargement des classes");
+      setClasses([]);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [parentsRes, classesRes] = await Promise.all([
-          fetch("http://localhost:5000/api/parents"),
-          fetch("http://localhost:5000/api/classes")
-        ]);
-
-        const parentsData = await parentsRes.json();
-        const classesData = await classesRes.json();
-
-        setParents(parentsData || []);
-        setClasses(classesData.classes || []);
+        await Promise.all([fetchParents(), fetchClasses()]);
       } catch (err) {
         console.error("Erreur chargement données:", err);
         toast.error("Erreur lors du chargement des données");
@@ -82,6 +109,7 @@ function AddStudent() {
     setSubmitting(true);
     
     try {
+      const token = localStorage.getItem('token');
       const dataToSend = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
         dataToSend.append(key, value);
@@ -92,25 +120,30 @@ function AddStudent() {
       
       const response = await fetch("http://localhost:5000/api/eleves", {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
         body: dataToSend,
       });
       
       if (!response.ok) {
-        throw new Error("Erreur serveur");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Erreur serveur");
       }
       
       await response.json();
       toast.success("Élève ajouté avec succès");
       navigate("/admin/eleves");
+      fetchParents(); // Recharge la liste des parents après l'ajout
     } catch (error) {
-      toast.error("Une erreur est survenue. Veuillez réessayer.");
+      toast.error(error.message || "Une erreur est survenue. Veuillez réessayer.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const selectedParent = parents.find(p => p._id === formData.parentId);
-  const selectedClasse = classes.find(c => c._id === formData.classe);
+  const selectedParent = Array.isArray(parents) ? parents.find(p => p._id === formData.parentId) : null;
+  const selectedClasse = Array.isArray(classes) ? classes.find(c => c._id === formData.classe) : null;
 
   return (
     <AdminLayout>
@@ -356,20 +389,31 @@ function AddStudent() {
                     <label className="block text-sm font-medium text-[#0a2540]">
                       Parent responsable <span className="text-red-500">*</span>
                     </label>
-                    <select 
-                      name="parentId" 
-                      required 
-                      onChange={handleChange} 
-                      value={formData.parentId} 
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#38bdf8] focus:border-transparent"
-                    >
-                      <option value="">Sélectionner un parent</option>
-                      {parents.map((parent) => (
-                        <option key={parent._id} value={parent._id}>
-                          {parent.prenom1} {parent.nom1}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="flex gap-2">
+                      <select 
+                        name="parentId" 
+                        required 
+                        onChange={handleChange} 
+                        value={formData.parentId} 
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#38bdf8] focus:border-transparent"
+                      >
+                        <option value="">Sélectionner un parent</option>
+                        {parents.map((parent) => (
+                          <option key={parent._id} value={parent._id}>
+                            {parent.prenom} {parent.nom} - {parent.email}
+                          </option>
+                        ))}
+                      </select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={fetchParents}
+                        className="px-3 py-2 border-[#38bdf8] text-[#38bdf8] hover:bg-[#e0f2fe]"
+                        title="Recharger la liste des parents"
+                      >
+                        🔄
+                      </Button>
+                    </div>
                     {loading && (
                       <div className="flex items-center gap-2 text-sm text-gray-500">
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -480,7 +524,7 @@ function AddStudent() {
                     <div>
                       <span className="text-gray-600">Parent:</span>
                       <p className="font-medium text-[#0a2540]">
-                        {selectedParent ? `${selectedParent.prenom1} ${selectedParent.nom1}` : "Non sélectionné"}
+                        {selectedParent ? `${selectedParent.prenom} ${selectedParent.nom}` : "Non sélectionné"}
                       </p>
                     </div>
                   </div>

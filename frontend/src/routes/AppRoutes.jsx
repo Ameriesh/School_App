@@ -28,6 +28,10 @@ import DemandesInscriptionEnfants from "../pages/admin/DemandesInscriptionEnfant
 import ConfirmationDemande from "../pages/parents/ConfirmationDemande";
 import InscrireEnfant from "../pages/parents/InscrireEnfant";
 import ParentRedirect from "../pages/parents/ParentRedirect";
+import Enfants from "../pages/parents/enfants";
+import EnfantNotes from "../pages/parents/EnfantNotes";
+import Absences from "../pages/teacher/Absences";
+import Bulletin from "../pages/teacher/Bulletin";
 
 export default function AppRoutes({ user, onLogin, onLogout }) {
   // Fonction de protection de route
@@ -248,12 +252,37 @@ export default function AppRoutes({ user, onLogin, onLogout }) {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/enseignant/absences"
+          element={
+            <ProtectedRoute requiredRole="enseignant">
+              <Absences />
+            </ProtectedRoute>
+          }
+        />
+         <Route
+          path="/enseignant/bulletin"
+          element={
+            <ProtectedRoute requiredRole="enseignant">
+              <Bulletin />
+            </ProtectedRoute>
+          }
+        />
+        
 
         {/* Routes publiques pour les parents */}
         <Route path="/parent/register" element={<RegisterParent />} />
         <Route path="/parent/confirmation" element={<ConfirmationDemande />} />
         <Route path="/parent/login" element={<LoginParent />} />
         <Route path="/parent/redirect" element={<ParentRedirect />} />
+        <Route
+          path="/parent/enfants"
+          element={<Enfants />}
+        />
+        <Route
+          path="/parent/enfant/:id/notes"
+          element={<EnfantNotes />}
+        />
 
         {/* Dashboard parent */}
         <Route

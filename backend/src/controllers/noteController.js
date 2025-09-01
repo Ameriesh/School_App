@@ -47,52 +47,6 @@ exports.addOrUpdateMultipleNotes = async (req, res) => {
   }
 };
 
-// 🔎 (Optionnel) Lister toutes les notes pour une UA et une compétence
-exports.getNotesByPeriodeAndCompetence = async (req, res) => {
-  try {
-    const { periodeId, competenceId } = req.params;
-    const enseignantId = req.authUser.mongoId;
-
-    const notes = await Note.find({
-      periode: periodeId,
-      competence: competenceId,
-      enseignant: enseignantId,
-    })
-      .populate("eleve", "nom prenom")
-      .populate("sousCompetence", "nom");
-
-    res.status(200).json({ notes });
-  } catch (error) {
-    console.error("Erreur chargement notes:", error);
-    res.status(500).json({ message: "Erreur serveur" });
-  }
-};
-// Dans noteController.js
-exports.checkExistingNotes = async (req, res) => {
-  try {
-    const { periode, competence } = req.query;
-    const enseignantId = req.authUser.mongoId;
-    
-    if (!periode || !competence) {
-      return res.status(400).json({ message: "Période et compétence requises" });
-    }
-
-    const notesExistantes = await Note.find({
-      periode,
-      competence,
-      enseignant: enseignantId
-    }).populate('eleve', 'nom prenom');
-
-    res.json({ notesExistantes });
-  } catch (error) {
-    console.error("Erreur vérification notes existantes:", error);
-    res.status(500).json({ 
-      message: "Erreur serveur",
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
 // Mettre à jour une note spécifique
 exports.updateNote = async (req, res) => {
   try {
@@ -159,5 +113,76 @@ exports.deleteNote = async (req, res) => {
       message: "Erreur serveur",
       error: error.message 
     });
+  }
+};
+
+// Vérifier les notes existantes pour une période et une compétence
+exports.checkExistingNotes = async (req, res) => {
+  try {
+    const { periode, competence } = req.query;
+    const enseignantId = req.authUser.mongoId;
+    
+    if (!periode || !competence) {
+      return res.status(400).json({ message: "Période et compétence requises" });
+    }
+
+    const notesExistantes = await Note.find({
+      periode,
+      competence,
+      enseignant: enseignantId
+    }).populate('eleve', 'nom prenom');
+
+    res.json({ notesExistantes });
+  } catch (error) {
+    console.error("Erreur vérification notes existantes:", error);
+    res.status(500).json({ 
+      message: "Erreur serveur",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Récupérer toutes les notes pour une période et une compétence
+exports.getNotesByPeriodeAndCompetence = async (req, res) => {
+  try {
+    const { periode, competence } = req.query;
+    const enseignantId = req.authUser.mongoId;
+    if (!periode || !competence) {
+      return res.status(400).json({ message: "Période et compétence requises" });
+    }
+    const notes = await Note.find({
+      periode,
+      competence,
+      enseignant: enseignantId
+    })
+      .populate('eleve', 'nom prenom')
+      .populate('sousCompetence', 'nom');
+    res.json({ notes });
+  } catch (error) {
+    console.error("Erreur récupération notes:", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+exports.getNotesForEnseignant = async (req, res) => {
+  try {
+    const enseignantId = req.authUser.mongoId;
+    console.log('getNotesForEnseignant - enseignantId:', enseignantId);
+    const classe = await require('../models/Classe').findOne({ enseignant: enseignantId });
+    if (!classe) {
+      console.log('Aucune classe trouvée pour enseignant:', enseignantId);
+      return res.status(404).json({ message: "Aucune classe assignée à cet enseignant." });
+    }
+    const eleves = await require('../models/Eleve').find({ classe: classe._id });
+    const eleveIds = eleves.map(e => e._id);
+    const notes = await require('../models/Note').find({ eleve: { $in: eleveIds } })
+      .populate('eleve', 'nom prenom')
+      .populate('competence', 'nom')
+      .populate('periode', 'nom');
+    console.log('Notes trouvées:', notes.length);
+    res.status(200).json({ notes });
+  } catch (err) {
+    console.error('Erreur dans getNotesForEnseignant:', err);
+    res.status(500).json({ message: "Erreur serveur", error: err.message });
   }
 };

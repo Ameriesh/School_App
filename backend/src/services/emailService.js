@@ -1,13 +1,5 @@
 const nodemailer = require('nodemailer');
 
-// Debug: Afficher la configuration (sans le mot de passe)
-console.log('📧 Configuration email :', {
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: process.env.SMTP_PORT || 587,
-  user: process.env.SMTP_USER || 'your-email@gmail.com',
-  pass: process.env.SMTP_PASS ? '***' : 'Non défini'
-});
-
 // Configuration du transporteur email (à adapter selon votre fournisseur)
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -22,7 +14,7 @@ const transporter = nodemailer.createTransport({
 // Envoyer les identifiants de connexion aux parents
 const sendParentCredentials = async (email, nom, prenom, motDePasse) => {
   const mailOptions = {
-    from: `"SchoolApp" <${process.env.SMTP_USER || 'noreply@schoolapp.com'}>`,
+    from: `"SchoolApp" <${process.env.SMTP_USER || 'amerieninmazou@gmail.com.com'}>`,
     to: email,
     subject: 'Votre compte parent a été activé - SchoolApp',
     html: `
@@ -130,7 +122,7 @@ const sendParentCredentials = async (email, nom, prenom, motDePasse) => {
 // Envoyer un email de confirmation de demande
 const sendDemandeConfirmation = async (email, nom, prenom) => {
   const mailOptions = {
-    from: `"SchoolApp" <${process.env.SMTP_USER || 'noreply@schoolapp.com'}>`,
+    from: `"SchoolApp" <${process.env.SMTP_USER || 'amerieninmazou@gmail.com'}>`,
     to: email,
     subject: 'Confirmation de votre demande d\'inscription - SchoolApp',
     html: `
@@ -197,7 +189,7 @@ const sendDemandeConfirmation = async (email, nom, prenom) => {
 // Envoyer un email de rejet
 const sendDemandeRejet = async (email, nom, prenom, commentaire) => {
   const mailOptions = {
-    from: `"SchoolApp" <${process.env.SMTP_USER || 'noreply@schoolapp.com'}>`,
+    from: `"SchoolApp" <${process.env.SMTP_USER || 'amerieninmazou@gmail.com'}>`,
     to: email,
     subject: 'Réponse à votre demande d\'inscription - SchoolApp',
     html: `

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AdminLayout from "../admin/AdminLayout";
+import { getAuthToken } from "@/lib/utils";
 
 export default function TeacherDashboard({ onLogout}) {
   const [stats, setStats] = useState({
@@ -31,14 +32,11 @@ export default function TeacherDashboard({ onLogout}) {
   useEffect(() => {
     const fetchDashboardData = async () => {
       setLoading(true);
-      const token = localStorage.getItem("token");
+      const token = getAuthToken();
       
       try {
-        const [elevesRes, notesRes, periodesRes, competencesRes] = await Promise.all([
+        const [elevesRes, periodesRes, competencesRes] = await Promise.all([
           fetch("http://localhost:5000/api/eleves/enseignant", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch("http://localhost:5000/api/notes/enseignant", {
             headers: { Authorization: `Bearer ${token}` },
           }),
           fetch("http://localhost:5000/api/periodes", {
@@ -50,13 +48,11 @@ export default function TeacherDashboard({ onLogout}) {
         ]);
 
         const elevesData = await elevesRes.json();
-        const notesData = await notesRes.json();
         const periodesData = await periodesRes.json();
         const competencesData = await competencesRes.json();
 
         setStats({
           totalEleves: elevesData.eleves?.length || 0,
-          totalNotes: notesData.notes?.length || 0,
           periodesActives: periodesData.periodes?.length || 0,
           competences: competencesData.competences?.length || 0
         });

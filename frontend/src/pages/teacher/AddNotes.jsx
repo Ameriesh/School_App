@@ -22,6 +22,7 @@ import {
   Minus
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
+import { getAuthToken } from "@/lib/utils";
 
 export default function AddNotes() {
   const navigate = useNavigate();
@@ -42,7 +43,7 @@ export default function AddNotes() {
   useEffect(() => {
     const fetchInitialData = async () => {
       setIsLoading(true);
-      const token = localStorage.getItem("token");
+      const token = getAuthToken();
 
       try {
         const [periodesRes, competencesRes, elevesRes] = await Promise.all([
@@ -77,10 +78,18 @@ export default function AddNotes() {
   // Charger les données quand période ou compétence change
   useEffect(() => {
     const fetchData = async () => {
-      if (!periodeId || !competenceId || eleves.length === 0) return;
+      if (!periodeId || !competenceId || eleves.length === 0) {
+        // Réinitialiser les données quand on change de sélection
+        setSousCompetences([]);
+        setElevesANoter([]);
+        setNotes([]);
+        setCurrentStep(1);
+        setValidationErrors({});
+        return;
+      }
 
       setIsLoading(true);
-      const token = localStorage.getItem("token");
+      const token = getAuthToken();
 
       try {
         // Charger les sous-compétences avec les bonnes notes max
@@ -103,11 +112,9 @@ export default function AddNotes() {
         sousCompData.sousCompetences.forEach((sc) => {
           let max = 20; // Par défaut
           const nom = sc.nom.toLowerCase();
-          
           if (nom.includes("écrit") || nom.includes("ecrit")) max = 15;
           else if (nom.includes("savoir-être") || nom.includes("savoir-etre")) max = 3;
           else if (nom.includes("oral")) max = 12;
-          
           maxNotesObj[sc._id] = max;
         });
         setMaxNotes(maxNotesObj);
@@ -116,28 +123,36 @@ export default function AddNotes() {
         // Filtrer les élèves déjà notés
         const elevesDejaNotes = notesData.notesExistantes || [];
         const elevesIdsDejaNotes = elevesDejaNotes.map(n => n.eleve._id || n.eleve);
-        
-        setElevesANoter(eleves.filter(e => !elevesIdsDejaNotes.includes(e._id)));
+        const elevesANoter = eleves.filter(e => !elevesIdsDejaNotes.includes(e._id));
+        setElevesANoter(elevesANoter);
 
         // Initialiser les notes pour les élèves à noter
-        const initialNotes = eleves
-          .filter(e => !elevesIdsDejaNotes.includes(e._id))
-          .flatMap(eleve => 
-            sousCompData.sousCompetences.map(sc => ({
-              eleve: eleve._id,
-              sousCompetence: sc._id,
-              note: "",
-              statut: "new",
-            }))
-          );
+        const initialNotes = elevesANoter.flatMap(eleve => 
+          sousCompData.sousCompetences.map(sc => ({
+            eleve: eleve._id,
+            sousCompetence: sc._id,
+            note: "",
+            statut: "new",
+          }))
+        );
         setNotes(initialNotes);
 
-        if (eleves.filter(e => !elevesIdsDejaNotes.includes(e._id)).length > 0) {
+        // Passer à l'étape 2 si il y a des élèves à noter
+        if (elevesANoter.length > 0) {
           setCurrentStep(2);
+        } else {
+          setCurrentStep(1);
         }
 
+        // Réinitialiser les erreurs de validation
+        setValidationErrors({});
       } catch (error) {
         toast.error("Erreur lors du chargement des données");
+        // Réinitialiser en cas d'erreur
+        setSousCompetences([]);
+        setElevesANoter([]);
+        setNotes([]);
+        setCurrentStep(1);
       } finally {
         setIsLoading(false);
       }
@@ -161,6 +176,29 @@ export default function AddNotes() {
       delete newErrors[`${eleveId}-${scId}`];
       return newErrors;
     });
+  };
+
+  const handlePeriodeChange = (e) => {
+    const newPeriodeId = e.target.value;
+    setPeriodeId(newPeriodeId);
+    // Réinitialiser la compétence et les données associées
+    setCompetenceId("");
+    setSousCompetences([]);
+    setElevesANoter([]);
+    setNotes([]);
+    setCurrentStep(1);
+    setValidationErrors({});
+  };
+
+  const handleCompetenceChange = (e) => {
+    const newCompetenceId = e.target.value;
+    setCompetenceId(newCompetenceId);
+    // Réinitialiser les données associées
+    setSousCompetences([]);
+    setElevesANoter([]);
+    setNotes([]);
+    setCurrentStep(1);
+    setValidationErrors({});
   };
 
   const validateNotes = () => {
@@ -210,7 +248,7 @@ export default function AddNotes() {
     if (!validateNotes()) return;
 
     setIsLoading(true);
-    const token = localStorage.getItem("token");
+    const token = getAuthToken();
 
     try {
       // Préparer les notes à envoyer (uniquement celles remplies)
@@ -237,11 +275,9 @@ export default function AddNotes() {
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const notesData = await notesRes.json();
-        
         const elevesDejaNotes = notesData.notesExistantes || [];
         const elevesIdsDejaNotes = elevesDejaNotes.map(n => n.eleve._id || n.eleve);
         setElevesANoter(eleves.filter(e => !elevesIdsDejaNotes.includes(e._id)));
-        
         // Réinitialiser les notes
         setNotes([]);
         setCurrentStep(1);
@@ -276,6 +312,19 @@ export default function AddNotes() {
     if (nom.includes("savoir-être") || nom.includes("savoir-etre")) return <Award className="h-4 w-4 text-purple-500" />;
     return <Calculator className="h-4 w-4 text-gray-500" />;
   };
+
+  if (!isLoading && eleves.length === 0) {
+    return (
+      <AdminLayout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
+            <p className="text-lg font-semibold text-gray-700">Aucun élève trouvé. Il est possible qu'aucune classe ne vous soit assignée. Contactez l'administrateur si besoin.</p>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -350,7 +399,7 @@ export default function AddNotes() {
                     </label>
                     <select
                       value={periodeId}
-                      onChange={(e) => setPeriodeId(e.target.value)}
+                      onChange={handlePeriodeChange}
                       className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                       required
                       disabled={isLoading}
@@ -370,7 +419,7 @@ export default function AddNotes() {
                     </label>
                     <select
                       value={competenceId}
-                      onChange={(e) => setCompetenceId(e.target.value)}
+                      onChange={handleCompetenceChange}
                       className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                       required
                       disabled={isLoading || !periodeId}

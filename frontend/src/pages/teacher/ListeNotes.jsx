@@ -1,83 +1,94 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import AdminLayout from "../admin/AdminLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Toaster, toast } from "sonner";
-import { 
-  Loader2, 
-  FileText, 
-  Download, 
-  Search, 
-  Filter, 
-  BarChart3, 
-  TrendingUp,
-  TrendingDown,
-  Award,
-  Calendar,
-  Users,
-  RefreshCw,
-  Eye,
-  Printer,
-  BookOpen,
-  Target,
-  Star
-} from "lucide-react";
-import AdminLayout from "../admin/AdminLayout";
+import { Download, Search, Star, Award } from "lucide-react";
+import { getAuthToken } from "@/lib/utils";
 
 export default function ListeNotes() {
   const [periodes, setPeriodes] = useState([]);
+  const [competences, setCompetences] = useState([]);
+  const [eleves, setEleves] = useState([]);
   const [selectedPeriode, setSelectedPeriode] = useState('');
+  const [selectedCompetence, setSelectedCompetence] = useState('');
+  const [selectedEleve, setSelectedEleve] = useState('');
   const [notes, setNotes] = useState([]);
-  const [filteredNotes, setFilteredNotes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [sousCompetences, setSousCompetences] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCompetence, setSelectedCompetence] = useState('all');
-  const [stats, setStats] = useState({
-    totalNotes: 0,
-    moyenneGenerale: 0,
-    meilleurEleve: null,
-    competences: [],
-    moyennesParCompetence: []
-  });
-  const navigate = useNavigate();
+
+  // Ajout utilitaire pour le barème par sous-compétence
+  const BAREMES = {
+    'Oral': 12,
+    'Écrit': 15,
+    'Savoir-être': 3
+  };
+
+  function getBareme(sousCompNom) {
+    if (!sousCompNom) return 20;
+    if (sousCompNom.toLowerCase().includes('oral')) return 12;
+    if (sousCompNom.toLowerCase().includes('écrit')) return 15;
+    if (sousCompNom.toLowerCase().includes('savoir')) return 3;
+    return 20;
+  }
 
   useEffect(() => {
-    const fetchPeriodes = async () => {
+    const fetchPeriodesCompetencesEleves = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch('http://localhost:5000/api/periodes', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          }
-        });
-        const data = await res.json();
-        setPeriodes(data.periodes || []);
+        const token = getAuthToken();
+        const [periodesRes, competencesRes, elevesRes] = await Promise.all([
+          fetch('http://localhost:5000/api/periodes', {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch('http://localhost:5000/api/competences', {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch('http://localhost:5000/api/eleves/enseignant', {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+        ]);
+        const periodesData = await periodesRes.json();
+        const competencesData = await competencesRes.json();
+        const elevesData = await elevesRes.json();
+        setPeriodes(periodesData.periodes || []);
+        setCompetences(competencesData.competences || []);
+        setEleves(elevesData.eleves || []);
       } catch (error) {
-        toast.error('Erreur lors du chargement des périodes');
+        toast.error('Erreur lors du chargement des périodes, compétences ou élèves');
       }
     };
-    fetchPeriodes();
+    fetchPeriodesCompetencesEleves();
   }, []);
 
   const loadNotes = async () => {
-    if (!selectedPeriode) return;
-    
+    if (!selectedPeriode || !selectedCompetence) return;
     setIsLoading(true);
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:5000/api/notes/grouped?periodeId=${selectedPeriode}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        }
+      const token = getAuthToken();
+      // Récupérer les sous-compétences pour l'en-tête du tableau
+      const sousCompRes = await fetch(`http://localhost:5000/api/souscompetences/byCompetence/${selectedCompetence}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const sousCompData = await sousCompRes.json();
+      setSousCompetences(sousCompData.sousCompetences || []);
+      let notesData = [];
+      if (selectedEleve) {
+        // Utiliser la route dédiée enseignant/notes
+        const res = await fetch(`http://localhost:5000/api/enseignant/notes?eleveId=${selectedEleve}&periode=${selectedPeriode}&competence=${selectedCompetence}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        notesData = data.notes || [];
+      } else {
+        // Affichage global (tous les élèves)
+        const res = await fetch(`http://localhost:5000/api/notes/by-periode-competence?periode=${selectedPeriode}&competence=${selectedCompetence}`, {
+          headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      const notesData = data.data || [];
+        notesData = data.notes || [];
+      }
       setNotes(notesData);
-      setFilteredNotes(notesData);
-      
-      // Calculer les statistiques
-      calculateStats(notesData);
     } catch (error) {
       toast.error('Erreur lors du chargement des notes');
     } finally {
@@ -85,446 +96,329 @@ export default function ListeNotes() {
     }
   };
 
-  const calculateStats = (notesData) => {
-    if (notesData.length === 0) {
-      setStats({
-        totalNotes: 0,
-        moyenneGenerale: 0,
-        meilleurEleve: null,
-        competences: [],
-        moyennesParCompetence: []
-      });
-      return;
+  // Regrouper les notes par élève
+  const notesParEleve = {};
+  notes.forEach(note => {
+    const eleveId = note.eleve?._id;
+    if (!eleveId) return;
+    if (!notesParEleve[eleveId]) {
+      notesParEleve[eleveId] = {
+        eleve: note.eleve,
+        notes: {},
+        total: 0
+      };
     }
+    notesParEleve[eleveId].notes[note.sousCompetence?._id] = note.note;
+    notesParEleve[eleveId].total += Number(note.note) || 0;
+  });
 
-    // Calculer les statistiques
-    const totalNotes = notesData.length;
-    const toutesLesNotes = notesData.flatMap(group => 
-      group.notes.map(note => note.note)
+  // Appliquer la recherche
+  const filteredEleves = Object.values(notesParEleve).filter(row => {
+    const nom = row.eleve.nom?.toLowerCase() || '';
+    const prenom = row.eleve.prenom?.toLowerCase() || '';
+    return (
+      nom.includes(searchTerm.toLowerCase()) ||
+      prenom.includes(searchTerm.toLowerCase())
     );
-    const moyenneGenerale = toutesLesNotes.length > 0 
-      ? (toutesLesNotes.reduce((sum, note) => sum + note, 0) / toutesLesNotes.length).toFixed(2)
+  });
+
+  // Moyenne générale
+  const moyenneGenerale =
+    filteredEleves.length > 0
+      ? (
+          filteredEleves.reduce((sum, row) => sum + row.total, 0) /
+          filteredEleves.length
+        ).toFixed(2)
       : 0;
 
-    // Trouver le meilleur élève
-    const elevesScores = {};
-    notesData.forEach(group => {
-      const totalEleve = group.notes.reduce((sum, note) => sum + note.note, 0);
-      const eleveKey = `${group.eleve.nom} ${group.eleve.prenom}`;
-      if (!elevesScores[eleveKey] || totalEleve > elevesScores[eleveKey].score) {
-        elevesScores[eleveKey] = {
-          nom: eleveKey,
-          score: totalEleve,
-          maxScore: 30
-        };
-      }
-    });
+  // Meilleur élève
+  const meilleurEleve =
+    filteredEleves.length > 0
+      ? filteredEleves.reduce((best, curr) =>
+          curr.total > best.total ? curr : best
+        )
+      : null;
 
-    const meilleurEleve = Object.values(elevesScores).reduce((best, current) => 
-      current.score > best.score ? current : best
-    );
+  // Moyenne par sous-compétence
+  const moyennesParSousComp = sousCompetences.map(sc => {
+    const notesSC = filteredEleves.map(row => row.notes[sc._id]).filter(n => n !== undefined);
+    const moyenne = notesSC.length > 0 ? (notesSC.reduce((a, b) => a + Number(b), 0) / notesSC.length).toFixed(2) : '-';
+    return { nom: sc.nom, moyenne };
+  });
 
-    // Compétences uniques et moyennes par compétence
-    const competences = [...new Set(notesData.map(group => group.competence.nom))];
-    
-    const moyennesParCompetence = competences.map(comp => {
-      const notesComp = notesData.filter(group => group.competence.nom === comp);
-      const totalComp = notesComp.reduce((sum, group) => {
-        return sum + group.notes.reduce((sumNote, note) => sumNote + note.note, 0);
-      }, 0);
-      const moyenneComp = (totalComp / notesComp.length).toFixed(2);
-      
-      return {
-        nom: comp,
-        moyenne: parseFloat(moyenneComp),
-        nombreEleves: notesComp.length
-      };
-    });
-
-    setStats({
-      totalNotes,
-      moyenneGenerale: parseFloat(moyenneGenerale),
-      meilleurEleve,
-      competences,
-      moyennesParCompetence
-    });
-  };
-
-  // Filtrer les notes
-  useEffect(() => {
-    let filtered = notes;
-
-    if (searchTerm) {
-      filtered = filtered.filter(group =>
-        group.eleve.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        group.eleve.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        group.competence.nom.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (selectedCompetence !== 'all') {
-      filtered = filtered.filter(group => 
-        group.competence.nom === selectedCompetence
-      );
-    }
-
-    setFilteredNotes(filtered);
-  }, [notes, searchTerm, selectedCompetence]);
-
+  // Export PDF sécurisé
   const exportPDF = async () => {
-    if (!selectedPeriode) {
-      toast.warning('Veuillez sélectionner une période');
+    if (!selectedPeriode || !selectedCompetence) {
+      toast.warning('Veuillez sélectionner une période et une compétence');
       return;
     }
-
     try {
-      const token = localStorage.getItem("token");
-      window.open(`http://localhost:5000/api/notes/export-pdf?periodeId=${selectedPeriode}`, '_blank');
+      const token = getAuthToken();
+      const res = await fetch(`http://localhost:5000/api/notes/export-pdf?periodeId=${selectedPeriode}&competenceId=${selectedCompetence}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error("Erreur lors de la génération du PDF");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `notes-${selectedPeriode}-${selectedCompetence}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
       toast.success('Export PDF lancé');
     } catch (error) {
       toast.error('Erreur lors de l\'export PDF');
     }
   };
 
-  const getPerformanceColor = (score, maxScore) => {
-    const percentage = (score / maxScore) * 100;
-    if (percentage >= 80) return 'text-green-600';
-    if (percentage >= 60) return 'text-yellow-600';
-    return 'text-red-600';
-  };
+  // Calcul des moyennes sur toutes les compétences remplies
+  const [moyennesParEleve, setMoyennesParEleve] = useState([]);
+  const [moyenneGeneraleClasse, setMoyenneGeneraleClasse] = useState(null);
 
-  const getPerformanceIcon = (score, maxScore) => {
-    const percentage = (score / maxScore) * 100;
-    if (percentage >= 80) return <TrendingUp className="h-4 w-4 text-green-600" />;
-    if (percentage >= 60) return <BarChart3 className="h-4 w-4 text-yellow-600" />;
-    return <TrendingDown className="h-4 w-4 text-red-600" />;
-  };
-
-  const getCompetenceColor = (moyenne) => {
-    if (moyenne >= 24) return 'text-green-600 bg-green-50';
-    if (moyenne >= 18) return 'text-yellow-600 bg-yellow-50';
-    return 'text-red-600 bg-red-50';
-  };
+  useEffect(() => {
+    if (!selectedPeriode) return;
+    const calculerMoyennes = async () => {
+      try {
+        const token = getAuthToken();
+        // Récupérer toutes les compétences
+        const compRes = await fetch('http://localhost:5000/api/competences', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const compData = await compRes.json();
+        const allCompetences = compData.competences || [];
+        // Pour chaque élève, calculer la moyenne sur toutes les compétences remplies
+        const moyennes = [];
+        for (const eleve of eleves) {
+          let totalNote = 0;
+          let totalBareme = 0;
+          for (const comp of allCompetences) {
+            // Récupérer les sous-compétences de cette compétence
+            const sousCompRes = await fetch(`http://localhost:5000/api/souscompetences/byCompetence/${comp._id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const sousCompData = await sousCompRes.json();
+            const sousComps = sousCompData.sousCompetences || [];
+            // Pour chaque sous-compétence, récupérer la note de l'élève
+            for (const sc of sousComps) {
+              const noteRes = await fetch(`http://localhost:5000/api/enseignant/notes?eleveId=${eleve._id}&periode=${selectedPeriode}&competence=${comp._id}&sousCompetence=${sc._id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              const noteData = await noteRes.json();
+              const note = Array.isArray(noteData.notes) && noteData.notes.length > 0 ? noteData.notes[0].note : null;
+              if (note !== null && note !== undefined) {
+                totalNote += Number(note);
+                totalBareme += getBareme(sc.nom);
+              }
+            }
+          }
+          const moyenne = totalBareme > 0 ? (totalNote / totalBareme * 20).toFixed(2) : null;
+          moyennes.push({ eleve, moyenne });
+        }
+        // Trier par moyenne décroissante (rang)
+        moyennes.sort((a, b) => (b.moyenne || 0) - (a.moyenne || 0));
+        setMoyennesParEleve(moyennes);
+        // Moyenne générale de la classe
+        const moys = moyennes.map(m => Number(m.moyenne)).filter(m => !isNaN(m));
+        setMoyenneGeneraleClasse(moys.length > 0 ? (moys.reduce((a, b) => a + b, 0) / moys.length).toFixed(2) : null);
+      } catch (err) {
+        setMoyennesParEleve([]);
+        setMoyenneGeneraleClasse(null);
+      }
+    };
+    calculerMoyennes();
+    // eslint-disable-next-line
+  }, [eleves, selectedPeriode]);
 
   return (
     <AdminLayout>
       <Toaster position="top-right" richColors />
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50">
-        {/* En-tête */}
-        <div className="bg-white shadow-sm border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  Gestion des Notes
-                </h1>
-                <p className="mt-2 text-gray-600">
-                  Consultez et exportez les notes de vos élèves par compétences
-                </p>
-              </div>
-              <div className="flex space-x-2">
-                <Button
-                  onClick={() => navigate("/teacher/add-notes")}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Ajouter des Notes
-                </Button>
-                <Button
-                  onClick={exportPDF}
-                  variant="outline"
-                  disabled={!selectedPeriode}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Exporter PDF
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Sélecteur de période */}
-          <Card className="shadow-lg mb-6">
-            <CardContent className="p-6">
-              <div className="flex flex-col sm:flex-row gap-4 items-end">
+        <div className="max-w-5xl mx-auto px-4 py-8">
+          <Card className="mb-6">
+            <CardContent className="p-6 flex flex-col md:flex-row gap-4 items-end">
                 <div className="flex-1">
-                  <label className="block mb-2 font-semibold text-gray-700">Période (UA)</label>
+                <label className="block mb-2 font-semibold text-gray-700">Période</label>
                   <select
                     value={selectedPeriode}
-                    onChange={(e) => setSelectedPeriode(e.target.value)}
-                    className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    disabled={isLoading}
+                  onChange={e => setSelectedPeriode(e.target.value)}
+                  className="w-full border rounded-lg px-4 py-2"
                   >
                     <option value="">-- Choisir une période --</option>
-                    {periodes.map((periode) => (
+                  {periodes.map(periode => (
                       <option key={periode._id} value={periode._id}>
                         UA{periode.ua} - {periode.mois} (Trimestre {periode.trimestre})
                       </option>
                     ))}
                   </select>
                 </div>
-                <Button
-                  onClick={loadNotes}
-                  disabled={isLoading || !selectedPeriode}
-                  className="bg-blue-600 hover:bg-blue-700"
+              <div className="flex-1">
+                <label className="block mb-2 font-semibold text-gray-700">Compétence</label>
+                <select
+                  value={selectedCompetence}
+                  onChange={e => setSelectedCompetence(e.target.value)}
+                  className="w-full border rounded-lg px-4 py-2"
                 >
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                  <span className="ml-2">Charger</span>
-                </Button>
+                  <option value="">-- Choisir une compétence --</option>
+                  {competences.map(comp => (
+                    <option key={comp._id} value={comp._id}>{comp.nom}</option>
+                  ))}
+                </select>
               </div>
+              <Button
+                onClick={loadNotes}
+                disabled={!selectedPeriode || !selectedCompetence || isLoading}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Afficher les notes
+              </Button>
+              <Button
+                onClick={exportPDF}
+                variant="outline"
+                disabled={!selectedPeriode || !selectedCompetence}
+                className="ml-2"
+              >
+                <Download className="h-4 w-4 mr-2" /> Export PDF
+              </Button>
             </CardContent>
           </Card>
 
           {/* Statistiques */}
-          {notes.length > 0 && (
+          {(filteredEleves.length > 0) && (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <Card className="transform hover:scale-105 transition-all duration-300 shadow-lg">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Total Notes</p>
-                      <p className="text-3xl font-bold text-gray-900">{stats.totalNotes}</p>
-                    </div>
-                    <div className="p-3 bg-blue-100 rounded-full">
-                      <FileText className="h-6 w-6 text-blue-600" />
-                    </div>
-                  </div>
+              <Card>
+                <CardContent className="p-4 flex flex-col items-center">
+                  <span className="text-sm text-gray-500">Moyenne Générale</span>
+                  <span className="text-2xl font-bold text-blue-700">{moyenneGenerale}</span>
                 </CardContent>
               </Card>
-
-              <Card className="transform hover:scale-105 transition-all duration-300 shadow-lg">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Moyenne Générale</p>
-                      <p className="text-3xl font-bold text-gray-900">{stats.moyenneGenerale}/30</p>
-                    </div>
-                    <div className="p-3 bg-green-100 rounded-full">
-                      <BarChart3 className="h-6 w-6 text-green-600" />
-                    </div>
-                  </div>
+              <Card>
+                <CardContent className="p-4 flex flex-col items-center">
+                  <span className="text-sm text-gray-500">Meilleur Élève</span>
+                  <span className="text-lg font-bold text-green-700 flex items-center gap-2">
+                    <Star className="h-5 w-5 text-yellow-400" />
+                    {meilleurEleve?.eleve?.nom} {meilleurEleve?.eleve?.prenom}
+                  </span>
+                  <span className="text-xs text-gray-500">Total: {meilleurEleve?.total}</span>
                 </CardContent>
               </Card>
-
-              <Card className="transform hover:scale-105 transition-all duration-300 shadow-lg">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Meilleur Élève</p>
-                      <p className="text-lg font-bold text-gray-900 truncate">
-                        {stats.meilleurEleve?.nom || "N/A"}
-                      </p>
-                    </div>
-                    <div className="p-3 bg-yellow-100 rounded-full">
-                      <Award className="h-6 w-6 text-yellow-600" />
-                    </div>
-                  </div>
-                  {stats.meilleurEleve && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      {stats.meilleurEleve.score}/{stats.meilleurEleve.maxScore}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className="transform hover:scale-105 transition-all duration-300 shadow-lg">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Compétences</p>
-                      <p className="text-3xl font-bold text-gray-900">{stats.competences.length}</p>
-                    </div>
-                    <div className="p-3 bg-purple-100 rounded-full">
-                      <Target className="h-6 w-6 text-purple-600" />
-                    </div>
+              <Card className="col-span-2">
+                <CardContent className="p-4">
+                  <span className="text-sm text-gray-500">Moyennes par sous-compétence</span>
+                  <div className="flex flex-wrap gap-4 mt-2">
+                    {moyennesParSousComp.map((msc, idx) => (
+                      <span key={idx} className="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
+                        {msc.nom}: <span className="ml-1 font-bold">{msc.moyenne}</span>
+                      </span>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
             </div>
           )}
 
-          {/* Moyennes par compétences */}
-          {stats.moyennesParCompetence.length > 0 && (
-            <Card className="shadow-lg mb-6">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5" />
-                  Moyennes par Compétences
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {stats.moyennesParCompetence.map((comp, index) => (
-                    <div key={index} className={`p-4 rounded-lg border ${getCompetenceColor(comp.moyenne)}`}>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold text-sm">{comp.nom}</h3>
-                          <p className="text-lg font-bold">{comp.moyenne}/30</p>
-                          <p className="text-xs opacity-75">{comp.nombreEleves} élève(s)</p>
-                        </div>
-                        <div className="text-2xl">
-                          {comp.moyenne >= 24 ? <Star className="h-6 w-6 text-green-600" /> :
-                           comp.moyenne >= 18 ? <BarChart3 className="h-6 w-6 text-yellow-600" /> :
-                           <TrendingDown className="h-6 w-6 text-red-600" />}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Filtres */}
-          {notes.length > 0 && (
-            <Card className="shadow-lg mb-6">
-              <CardContent className="p-6">
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1 relative">
+          {/* Barre de recherche */}
+          <div className="mb-4 flex items-center gap-2">
+            <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
+              <input
                       type="text"
-                      placeholder="Rechercher un élève ou une compétence..."
+                placeholder="Rechercher un élève par nom ou prénom..."
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
+                onChange={e => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 border rounded-lg w-full"
                     />
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Filter className="h-4 w-4 text-gray-400" />
+            <div className="flex-1">
                     <select
-                      value={selectedCompetence}
-                      onChange={(e) => setSelectedCompetence(e.target.value)}
-                      className="border rounded-md px-3 py-2 bg-white"
-                    >
-                      <option value="all">Toutes les compétences</option>
-                      {stats.competences.map(comp => (
-                        <option key={comp} value={comp}>{comp}</option>
+                value={selectedEleve}
+                onChange={e => setSelectedEleve(e.target.value)}
+                className="border rounded-lg px-4 py-2 w-full"
+              >
+                <option value="">Tous les élèves</option>
+                {eleves.map(eleve => (
+                  <option key={eleve._id} value={eleve._id}>{eleve.nom} {eleve.prenom}</option>
                       ))}
                     </select>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
 
-          {/* Tableau des notes */}
           {isLoading ? (
-            <Card className="shadow-lg">
-              <CardContent className="p-12 text-center">
-                <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
-                <p className="text-lg font-semibold text-gray-700">Chargement des notes...</p>
-              </CardContent>
-            </Card>
-          ) : notes.length === 0 ? (
-            <Card className="shadow-lg">
-              <CardContent className="p-12 text-center">
-                <FileText className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {selectedPeriode ? 'Aucune note trouvée' : 'Sélectionnez une période'}
-                </h3>
-                <p className="text-gray-500">
-                  {selectedPeriode 
-                    ? 'Aucune note n\'a été saisie pour cette période' 
-                    : 'Choisissez une période pour afficher les notes'
-                  }
-                </p>
-              </CardContent>
-            </Card>
+            <div className="text-center py-12">
+              <span className="text-lg font-semibold">Chargement des notes...</span>
+            </div>
+          ) : filteredEleves.length === 0 ? (
+            <div className="text-center py-12">
+              <span className="text-lg font-semibold text-gray-500">Aucune note trouvée pour cette période et cette compétence.</span>
+            </div>
           ) : (
-            <Card className="shadow-lg">
-              <CardContent className="p-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Notes des élèves</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full border">
                     <thead>
-                      <tr className="border-b-2 border-gray-200">
-                        <th className="text-left p-4 font-semibold text-gray-700">Élève</th>
-                        <th className="text-left p-4 font-semibold text-gray-700">Compétence</th>
-                        <th className="text-center p-4 font-semibold text-gray-700">Oral (/12)</th>
-                        <th className="text-center p-4 font-semibold text-gray-700">Écrit (/15)</th>
-                        <th className="text-center p-4 font-semibold text-gray-700">Savoir-être (/3)</th>
-                        <th className="text-center p-4 font-semibold text-gray-700">Total (/30)</th>
-                        <th className="text-center p-4 font-semibold text-gray-700">Performance</th>
-                        <th className="text-center p-4 font-semibold text-gray-700">Actions</th>
+                      <tr className="bg-gray-100">
+                        <th className="p-3 border">Élève</th>
+                        {sousCompetences.map(sc => (
+                          <th key={sc._id} className="p-3 border">{sc.nom}</th>
+                        ))}
+                        <th className="p-3 border">Total</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredNotes.map((group) => {
-                        const total = group.notes.reduce((sum, note) => sum + note.note, 0);
-                        const maxTotal = 30;
-                        return (
-                          <tr key={`${group.eleve.id}-${group.competence.id}`} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                            <td className="p-4">
-                              <div className="font-semibold text-gray-900">
-                                {group.eleve.nom} {group.eleve.prenom}
-                              </div>
-                            </td>
-                            <td className="p-4">
-                              <div className="text-gray-700">{group.competence.nom}</div>
-                            </td>
-                            {group.notes.map((note, idx) => (
-                              <td key={idx} className="p-4 text-center">
-                                <span className={`font-medium ${getPerformanceColor(note.note, note.max)}`}>
-                                  {note.note}/{note.max}
-                                </span>
-                              </td>
-                            ))}
-                            <td className="p-4 text-center">
-                              <span className={`font-bold text-lg ${getPerformanceColor(total, maxTotal)}`}>
-                                {total}/30
-                              </span>
-                            </td>
-                            <td className="p-4 text-center">
-                              {getPerformanceIcon(total, maxTotal)}
-                            </td>
-                            <td className="p-4 text-center">
-                              <div className="flex justify-center space-x-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    toast.info(`Détails de ${group.eleve.nom} ${group.eleve.prenom}`);
-                                  }}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    toast.info(`Impression des notes de ${group.eleve.nom} ${group.eleve.prenom}`);
-                                  }}
-                                >
-                                  <Printer className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </td>
+                      {filteredEleves.map((row, idx) => (
+                        <tr key={row.eleve._id || idx} className="border-b">
+                          <td className="p-3 border font-semibold">{row.eleve.nom} {row.eleve.prenom}</td>
+                          {sousCompetences.map(sc => (
+                            <td key={sc._id} className="p-3 border text-center">{row.notes[sc._id] !== undefined ? row.notes[sc._id] : '-'}</td>
+                          ))}
+                          <td className="p-3 border font-bold text-center">{row.total}</td>
                           </tr>
-                        );
-                      })}
+                      ))}
                     </tbody>
                   </table>
                 </div>
-
-                {/* Résumé des filtres */}
-                {filteredNotes.length > 0 && (
-                  <div className="mt-6 pt-6 border-t border-gray-200">
-                    <div className="flex items-center justify-between text-sm text-gray-600">
-                      <span>
-                        Affichage de {filteredNotes.length} note{filteredNotes.length > 1 ? 's' : ''} 
-                        {searchTerm && ` correspondant à "${searchTerm}"`}
-                        {selectedCompetence !== "all" && ` pour la compétence "${selectedCompetence}"`}
-                      </span>
-                      <span>Total: {notes.length} notes</span>
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
           )}
         </div>
       </div>
+      {moyennesParEleve.length > 0 && (
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle>Classement & Moyennes sur toutes les compétences remplies</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full border">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="p-3 border">Rang</th>
+                    <th className="p-3 border">Nom</th>
+                    <th className="p-3 border">Moyenne (/20)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {moyennesParEleve.map((row, idx) => (
+                    <tr key={row.eleve._id}>
+                      <td className="p-3 border text-center">{idx + 1}</td>
+                      <td className="p-3 border">{row.eleve.nom} {row.eleve.prenom}</td>
+                      <td className="p-3 border text-center font-bold">{row.moyenne ?? '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="mt-4 text-right text-sm text-gray-600">
+                Moyenne générale de la classe : <span className="font-bold">{moyenneGeneraleClasse ?? '-'}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </AdminLayout>
   );
 }

@@ -1,0 +1,8 @@
+[
+  { "code": "1A", "nom": "Français", "groupe": "Compétence 1" },
+  { "code": "1B", "nom": "Anglais", "groupe": "Compétence 1" },
+  { "code": "1C", "nom": "Lecture", "groupe": "Compétence 1" },
+  { "code": "1D", "nom": "Expression écrite", "groupe": "Compétence 1" },
+  { "code": "1E", "nom": "Orthographe", "groupe": "Compétence 1" },
+  { "code": "1F", "nom": "Conjugaison", "groupe": "Compétence 1" }
+]

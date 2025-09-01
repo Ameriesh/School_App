@@ -1,6 +1,7 @@
 const { admin } = require("../config/firebase-admin-init");
 const Teacher = require("../models/Teacher");
 const jwt = require('jsonwebtoken');
+const Parent = require('../models/Parents');
 
 exports.verifyAdmin = async (req, res, next) => {
   try {
@@ -125,6 +126,51 @@ exports.verifyParent = async (req, res, next) => {
       code: "AUTH_ERROR",
       message: "Erreur d'authentification"
     });
+  }
+};
+
+// Middleware mixte robuste : parent (JWT) ou enseignant (Firebase)
+exports.verifyParentOrEnseignantRobust = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'Token manquant' });
+    }
+    const token = authHeader.split(' ')[1];
+    // Essayer JWT (parent)
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+      if (decoded.role === 'parent') {
+        req.authUser = { role: 'parent', parentId: decoded.parentId, email: decoded.email };
+        req.parentId = decoded.parentId;
+        return next();
+      }
+    } catch (jwtErr) {
+      // Pas un JWT valide, on tente Firebase
+    }
+    // Essayer Firebase (enseignant)
+    try {
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      const userDoc = await admin.firestore().collection("users").doc(decodedToken.uid).get();
+      if (!userDoc.exists || userDoc.data().role !== "enseignant") {
+        return res.status(403).json({ message: "Accès réservé aux enseignants" });
+      }
+      const teacher = await Teacher.findOne({ firebaseUid: decodedToken.uid });
+      if (!teacher) {
+        return res.status(404).json({ message: "Enseignant non trouvé" });
+      }
+      req.authUser = {
+        uid: decodedToken.uid,
+        email: decodedToken.email,
+        role: "enseignant",
+        mongoId: teacher._id,
+      };
+      return next();
+    } catch (firebaseErr) {
+      return res.status(401).json({ message: 'Token invalide ou expiré' });
+    }
+  } catch (error) {
+    return res.status(401).json({ message: 'Token invalide ou expiré' });
   }
 };
 

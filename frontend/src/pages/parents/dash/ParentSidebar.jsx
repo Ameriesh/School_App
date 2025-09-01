@@ -59,15 +59,6 @@ export default function ParentSidebar({ open, setOpen, onLogout }) {
             <CalendarDays className="w-5 h-5 group-hover:scale-110 transition-transform" /> 
             <span>Absences</span>
           </Link>
-
-          <Link
-            to="/parent/commentaires"
-            onClick={handleLinkClick}
-            className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-[#38bdf8]/20 transition-all duration-200 text-white font-semibold group"
-          >
-            <MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform" /> 
-            <span>Commentaires</span>
-          </Link>
         </nav>
 
         {/* Déconnexion */}

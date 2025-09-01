@@ -132,6 +132,19 @@ export default function ListeEleve() {
     );
   }
 
+  if (!loading && eleves.length === 0) {
+    return (
+      <AdminLayout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
+            <p className="text-lg font-semibold text-gray-700">Aucun élève trouvé. Il est possible qu'aucune classe ne vous soit assignée. Contactez l'administrateur si besoin.</p>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
   return (
     <AdminLayout>
       <Toaster position="top-right" richColors />
